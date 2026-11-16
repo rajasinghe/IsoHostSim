@@ -31,6 +31,7 @@ import `in`.aicortex.iso8583studio.data.model.VerificationException
 import `in`.aicortex.iso8583studio.domain.utils.isIpMatched
 import `in`.aicortex.iso8583studio.logging.LogEntry
 import `in`.aicortex.iso8583studio.logging.LogHistory
+import `in`.aicortex.iso8583studio.logging.LogStamp
 import `in`.aicortex.iso8583studio.logging.LogType
 import `in`.aicortex.iso8583studio.ui.screens.hostSimulator.createLogEntry
 import kotlinx.coroutines.CoroutineScope
@@ -457,6 +458,9 @@ class HostSimulator : Simulator {
         // The file is the complete record: it carries type, source and details, which the previous
         // plain-text append dropped. Buffering, rotation and the flush watermark live in
         // LogFileWriter, so this stays a non-blocking hand-off from the connection thread.
+        // Stamp first: the tag comes from the call stack and the ids from this thread, neither of
+        // which exist any more once the entry has been handed to the writer or the view.
+        LogStamp.stamp(log)
         logHistory?.append(log)
         beforeWriteLogCallbacks(log)
     }

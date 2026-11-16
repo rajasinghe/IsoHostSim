@@ -23,6 +23,7 @@ import androidx.compose.material.TabRowDefaults
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.CompareArrows
 import androidx.compose.material.icons.filled.MarkEmailRead
@@ -60,6 +61,8 @@ import `in`.aicortex.iso8583studio.data.rememberIsoCoroutineScope
 import `in`.aicortex.iso8583studio.domain.service.hostSimulatorService.HostSimulator
 import ai.cortex.core.IsoUtil
 import `in`.aicortex.iso8583studio.logging.LogEntry
+import `in`.aicortex.iso8583studio.ui.screens.logcat.LogcatState
+import `in`.aicortex.iso8583studio.ui.screens.logcat.LogcatTab
 import `in`.aicortex.iso8583studio.ui.navigation.NavigationController
 import `in`.aicortex.iso8583studio.ui.screens.components.AppBarWithBack
 import `in`.aicortex.iso8583studio.ui.screens.components.SimulatorHandlerTab
@@ -70,6 +73,7 @@ import kotlin.concurrent.atomics.ExperimentalAtomicApi
 enum class HostSimulatorTabs(val title: String, val icon: ImageVector) {
     HOST_HANDLER("ISO8583 Transaction", Icons.Default.CompareArrows),
     LOGS("Logs", Icons.Default.Article),
+    LOGCAT("Logcat", Icons.Default.Terminal),
     SETTINGS("Settings", Icons.Default.Settings),
     TEMPLATE("ISO8583 Template", Icons.Default.Code),
     SEND_MESSAGE("Send Message", Icons.Default.Send),
@@ -163,6 +167,7 @@ fun HostSimulator(
     var rawResponse by remember { mutableStateOf("") }
     var response by remember { mutableStateOf("") }
     val logText = remember { mutableStateListOf<LogEntry>() }
+    val logcatState = remember { LogcatState() }
     val lastResponseIso = remember { mutableStateOf<Iso8583Data?>(null) }
     val lastResponseRawHex = remember { mutableStateOf("") }
     val sendMsgHistory = remember { mutableStateListOf<TxHistoryEntry>() }
@@ -326,6 +331,7 @@ fun HostSimulator(
             listOf(
                 HostSimulatorTabs.HOST_HANDLER,
                 HostSimulatorTabs.LOGS,
+                HostSimulatorTabs.LOGCAT,
                 HostSimulatorTabs.SETTINGS,
                 HostSimulatorTabs.TEMPLATE,
                 HostSimulatorTabs.SEND_MESSAGE,
@@ -336,6 +342,7 @@ fun HostSimulator(
                 HostSimulatorTabs.SEND_MESSAGE,
                 HostSimulatorTabs.LOAD_TEST,
                 HostSimulatorTabs.LOGS,
+                HostSimulatorTabs.LOGCAT,
                 HostSimulatorTabs.TEMPLATE,
                 HostSimulatorTabs.UNPACK_MESSAGE
             )
@@ -343,6 +350,7 @@ fun HostSimulator(
             listOf(
                 HostSimulatorTabs.HOST_HANDLER,
                 HostSimulatorTabs.LOGS,
+                HostSimulatorTabs.LOGCAT,
                 HostSimulatorTabs.SETTINGS,
                 HostSimulatorTabs.TEMPLATE,
                 HostSimulatorTabs.UNPACK_MESSAGE
@@ -450,6 +458,14 @@ fun HostSimulator(
                     bytesIncoming = bytesIncoming.get().toLong(),
                     bytesOutgoing = bytesOutgoing.get().toLong(),
                     concurrentConnections = concurrentConnections
+                )
+
+                HostSimulatorTabs.LOGCAT -> LogcatTab(
+                    state = logcatState,
+                    entries = logText,
+                    packageName = gw.configuration.name,
+                    bufferSize = AppSettings.maxLiveLogEntries,
+                    onClear = { logText.clear() },
                 )
 
                 HostSimulatorTabs.SETTINGS -> {
