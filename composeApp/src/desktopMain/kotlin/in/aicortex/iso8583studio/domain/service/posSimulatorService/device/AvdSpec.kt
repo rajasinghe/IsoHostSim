@@ -116,6 +116,10 @@ object AvdProperties {
         put(Props.ENCODING, "UTF-8")
 
         put(Props.ABI, image.abi)
+        // The built-in terminal profiles hardcode hw.cpu.arch=arm64 (the real devices are arm64).
+        // On an x86_64 image the emulator then aborts with "QEMU2 emulator does not support
+        // arm64 CPU architecture", so the CPU must follow the image ABI like abi.type does.
+        put(Props.CPU_ARCH, cpuArchFor(image.abi))
         put(Props.SYSDIR, image.sysdir)
         put(Props.TAG_ID, image.tag)
         put(Props.TAG_IDS, image.tag)
@@ -138,6 +142,14 @@ object AvdProperties {
         put(Props.FAST_BOOT, yesNo(!spec.coldBoot))
 
         putAll(skinKeys(hardware.skin))
+    }
+
+    /** The `hw.cpu.arch` value that matches a system image ABI. */
+    internal fun cpuArchFor(abi: String): String = when {
+        abi.startsWith("arm64") -> "arm64"
+        abi.startsWith("armeabi") -> "arm"
+        abi == "x86" -> "x86"
+        else -> "x86_64"
     }
 
     private fun skinKeys(skin: SkinRef?): Map<String, String> = when (skin?.kind) {

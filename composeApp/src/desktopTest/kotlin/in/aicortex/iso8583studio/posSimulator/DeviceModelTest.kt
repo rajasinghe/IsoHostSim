@@ -120,6 +120,19 @@ class DeviceModelTest {
     }
 
     @Test
+    fun `cpu arch follows the image abi so an x86_64 image never gets an arm64 cpu`() {
+        // Built-in terminal profiles hardcode arm64 (the real devices); the emulator aborts with
+        // "QEMU2 emulator does not support arm64 CPU architecture" on an x86_64 image.
+        val armProfile = a910sHardware.copy(properties = a910sHardware.properties + (Props.CPU_ARCH to "arm64"))
+        val x86 = spec.copy(systemImage = SystemImageRef(30, "google_apis", "x86_64"))
+        assertEquals("x86_64", AvdProperties.configIniOverlay(x86, armProfile)[Props.CPU_ARCH])
+        assertEquals("x86_64", AvdProperties.effective(x86, armProfile, schema)[Props.CPU_ARCH])
+
+        val arm = spec.copy(systemImage = SystemImageRef(30, "google_apis", "arm64-v8a"))
+        assertEquals("arm64", AvdProperties.configIniOverlay(arm, armProfile)[Props.CPU_ARCH])
+    }
+
+    @Test
     fun `play store flag follows the image tag`() {
         val playStore = spec.copy(systemImage = SystemImageRef(30, "google_apis_playstore", "arm64-v8a"))
         val overlay = AvdProperties.configIniOverlay(playStore, a910sHardware)
