@@ -277,13 +277,13 @@ fun HomeScreen(
         }
 
         // Floating search bar at center bottom
-        FloatingSearchBar(
-            query = viewModel.searchQuery.value,
-            onQueryChange = { viewModel.searchQuery.value = it },
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = 32.dp, end = 32.dp)
-        )
+//        FloatingSearchBar(
+//            query = viewModel.searchQuery.value,
+//            onQueryChange = { viewModel.searchQuery.value = it },
+//            modifier = Modifier
+//                .align(Alignment.BottomEnd)
+//                .padding(bottom = 32.dp, end = 32.dp)
+//        )
     }
 }
 

@@ -78,7 +78,7 @@ fun OverviewContent(viewModel: HomeScreenViewModel,
                     animationSpec = tween(700, easing = FastOutSlowInEasing)
                 ) + fadeIn(animationSpec = tween(700))
             ) {
-                HeaderDashboard()
+                //HeaderDashboard()
             }
         }
 
@@ -92,19 +92,19 @@ fun OverviewContent(viewModel: HomeScreenViewModel,
         }
 
         // Span the full width for the "Daily Wisdom" quote
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            DailyWisdomQuote(viewModel)
-        }
+//        item(span = { GridItemSpan(maxLineSpan) }) {
+//            DailyWisdomQuote(viewModel)
+//        }
 
         // Span the full width for the "What's New" section title
-        if (viewModel.newTools.isNotEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                DashboardSectionTitle("🚀 What's New", "Check out the latest additions")
-            }
-            items(viewModel.newTools.size) { index ->
-                StudioToolCard(tool = viewModel.newTools[index],onToolSelected = onToolSelected)
-            }
-        }
+//        if (viewModel.newTools.isNotEmpty()) {
+//            item(span = { GridItemSpan(maxLineSpan) }) {
+//                DashboardSectionTitle("🚀 What's New", "Check out the latest additions")
+//            }
+//            items(viewModel.newTools.size) { index ->
+//                StudioToolCard(tool = viewModel.newTools[index],onToolSelected = onToolSelected)
+//            }
+//        }
     }
 }
 
