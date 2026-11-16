@@ -25,7 +25,7 @@ class ToolCatalogSyncTest {
 
     @Test
     fun `every non-simulator StudioTool is in the catalog`() {
-        val simulators = ToolSuite.CORE_SIMULATORS.tools.toSet()
+        val simulators = ToolSuite.CORE_SIMULATORS.allTools.toSet()
         val catalogued = ToolCatalog.all.mapNotNull { it.studioToolName }.toSet()
         val missing = StudioTool.entries
             .filter { it !in simulators && it !in desktopOnly }

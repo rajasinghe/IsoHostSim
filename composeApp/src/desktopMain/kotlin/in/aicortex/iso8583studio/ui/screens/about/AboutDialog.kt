@@ -254,6 +254,18 @@ fun AboutDialog(
                         color = MaterialTheme.colors.onBackground.copy(alpha = 0.7f)
                     )
 
+                    Text(
+                        "Modified version. Source: github.com/rajasinghe/IsoHostSim",
+                        style = MaterialTheme.typography.caption,
+                        color = MaterialTheme.colors.onBackground.copy(alpha = 0.7f)
+                    )
+
+                    Text(
+                        "The ECR Simulator uses the CBA ECR class library (TCPJAVA_CBA_ClassLibrary).",
+                        style = MaterialTheme.typography.caption,
+                        color = MaterialTheme.colors.onBackground.copy(alpha = 0.7f)
+                    )
+
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // Website link

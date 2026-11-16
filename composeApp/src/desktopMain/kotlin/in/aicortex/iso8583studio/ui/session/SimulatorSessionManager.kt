@@ -9,11 +9,14 @@ import `in`.aicortex.iso8583studio.data.model.GatewayConfig
 import `in`.aicortex.iso8583studio.analytics.StudioAnalytics
 import `in`.aicortex.iso8583studio.analytics.NavSource
 import `in`.aicortex.iso8583studio.data.model.StudioTool
+import `in`.aicortex.iso8583studio.edition.EnabledTools
 import `in`.aicortex.iso8583studio.domain.service.hsmCommandService.HsmCommandClientService
 import `in`.aicortex.iso8583studio.domain.service.hsmSimulatorService.HsmServiceImpl
 import `in`.aicortex.iso8583studio.ui.navigation.stateConfigs.SimulatorType
 import `in`.aicortex.iso8583studio.ui.navigation.stateConfigs.hsm.HSMSimulatorConfig
 import `in`.aicortex.iso8583studio.ui.navigation.stateConfigs.hsmCommand.HsmCommandConfig
+import `in`.aicortex.iso8583studio.ui.navigation.stateConfigs.ecr.EcrSimulatorConfig
+import `in`.aicortex.iso8583studio.domain.service.ecr.EcrSimulatorService
 import `in`.aicortex.iso8583studio.ui.navigation.stateConfigs.pos.POSSimulatorConfig
 import java.time.LocalDateTime
 import kotlinx.coroutines.CoroutineScope
@@ -51,6 +54,7 @@ data class SimulatorSession(
     val hsmService: HsmServiceImpl? = null,
     val hsmCommandService: HsmCommandClientService? = null,
     val posService: POSSimulatorService? = null,
+    val ecrService: EcrSimulatorService? = null,
     /** Non-null for TOOL-type sessions — the Voyager Screen to render inside this tab. */
     val toolScreen: Screen? = null,
     /** The StudioTool this tab represents (for TOOL sessions). */
@@ -63,6 +67,7 @@ data class SimulatorSession(
             SimulatorType.POS -> "POS"
             SimulatorType.APDU -> "APDU"
             SimulatorType.HSM_COMMAND -> "CMDR"
+            SimulatorType.ECR -> "ECR"
             SimulatorType.TOOL -> studioTool?.label?.take(6) ?: "TOOL"
             else -> simulatorType.name.take(4)
         }
@@ -167,6 +172,15 @@ object SimulatorSessionManager {
                 hsmCommandService = HsmCommandClientService(config)
             )
 
+            is EcrSimulatorConfig -> SimulatorSession(
+                id = sessionId,
+                config = config,
+                simulatorType = SimulatorType.ECR,
+                displayName = displayName,
+                // Owned by the session so a running transaction survives tab switches.
+                ecrService = EcrSimulatorService(config),
+            )
+
             else -> SimulatorSession(
                 id = sessionId,
                 config = config,
@@ -204,6 +218,10 @@ object SimulatorSessionManager {
         session.posService?.let { svc ->
             // Synchronous: an emulator must not outlive the tab that started it.
             runCatching { svc.stop() }
+        }
+        session.ecrService?.let { svc ->
+            // Also releases the USB port the ECR library keeps open.
+            runCatching { svc.close() }
         }
 
         val elapsedSeconds = runCatching {
@@ -279,6 +297,8 @@ object SimulatorSessionManager {
      * @return The session ID of the created (or existing) tool tab
      */
     fun openTool(tool: StudioTool): String {
+        // Final guard for the QA edition: a hidden tool never opens, however it was reached.
+        if (!EnabledTools.isEnabled(tool)) return activeSessionId.value.orEmpty()
         ToolUsageTracker.recordUsage(tool.label)
         StudioAnalytics.toolOpened(tool)
 

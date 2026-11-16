@@ -104,8 +104,10 @@ sealed class Destination : Screen {
             HomeScreen(
                 viewModel = rememberScreenModel { HomeScreenViewModel() },
                 onToolSelected = { tool ->
-                    `in`.aicortex.iso8583studio.ui.session.ToolUsageTracker.recordUsage(tool.label)
-                    navigationController.navigateTo(tool.screen)
+                    if (`in`.aicortex.iso8583studio.edition.EnabledTools.isEnabled(tool)) {
+                        `in`.aicortex.iso8583studio.ui.session.ToolUsageTracker.recordUsage(tool.label)
+                        navigationController.navigateTo(tool.screen)
+                    }
                 },
                 onGetStarted = { navigationController.navigateTo(HostSimulatorConfig) }
             )

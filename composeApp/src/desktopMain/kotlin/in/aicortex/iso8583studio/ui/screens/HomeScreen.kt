@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import `in`.aicortex.iso8583studio.data.model.StudioTool
+import `in`.aicortex.iso8583studio.edition.EnabledTools
 import `in`.aicortex.iso8583studio.ui.screens.HomeScreenViewModel
 import `in`.aicortex.iso8583studio.ui.screens.OverviewContent
 import `in`.aicortex.iso8583studio.ui.screens.components.DevelopmentStatus
@@ -38,13 +39,15 @@ enum class ToolSuite(
     val displayName: String,
     val description: String,
     val icon: ImageVector,
-    val tools: List<StudioTool>
+    /** Every tool in the suite, whatever the edition. */
+    val allTools: List<StudioTool>
 ) {
+
     CORE_SIMULATORS(
         displayName = "Payment Simulators",
         description = "Core payment system simulators for transaction testing",
         icon = Icons.Default.Router,
-        tools = listOf(
+        allTools = listOf(
             StudioTool.HOST_SIMULATOR,
             StudioTool.HSM_SIMULATOR,
             StudioTool.HSM_COMMAND,
@@ -62,7 +65,7 @@ enum class ToolSuite(
         displayName = "EMV & Card Tools",
         description = "Smart card, EMV, and contactless payment tools",
         icon = Icons.Default.CreditCard,
-        tools = listOf(
+        allTools = listOf(
             StudioTool.EMV_41_CRYPTO,
             StudioTool.EMV_42_CRYPTO,
             StudioTool.MASTERCARD_CRYPTO,
@@ -82,7 +85,7 @@ enum class ToolSuite(
         displayName = "Cryptographic Tools",
         description = "Encryption, decryption, and security utilities",
         icon = Icons.Default.VpnKey,
-        tools = listOf(
+        allTools = listOf(
             StudioTool.AES_CALCULATOR,
             StudioTool.DES_CALCULATOR,
             StudioTool.RSA_CALCULATOR,
@@ -97,7 +100,7 @@ enum class ToolSuite(
         displayName = "Key Management",
         description = "HSM keys, key blocks, and derivation tools",
         icon = Icons.Default.VpnKey,
-        tools = listOf(
+        allTools = listOf(
             StudioTool.DEA_KEYS,
             StudioTool.KEYSHARE_GENERATOR,
             StudioTool.THALES_KEYS,
@@ -115,7 +118,7 @@ enum class ToolSuite(
         displayName = "Payment Utilities",
         description = "Payment processing and validation utilities",
         icon = Icons.Default.Payment,
-        tools = listOf(
+        allTools = listOf(
             StudioTool.CVV_CALCULATOR,
             StudioTool.AMEX_CSC,
             StudioTool.MESSAGE_PARSER,
@@ -145,7 +148,7 @@ enum class ToolSuite(
         displayName = "Data Converters",
         description = "Format conversion and encoding utilities",
         icon = Icons.Default.Transform,
-        tools = listOf(
+        allTools = listOf(
             StudioTool.BASE64_ENCODER,
             StudioTool.BASE94_ENCODER,
             StudioTool.BCD_CONVERTER,
@@ -153,7 +156,15 @@ enum class ToolSuite(
             StudioTool.CHECK_DIGIT,
             StudioTool.TRACK2_CODEC
         )
-    )
+    );
+
+    /** The suite's tools this build exposes (see [EnabledTools]). */
+    val tools: List<StudioTool> get() = allTools.filter { EnabledTools.isEnabled(it) }
+
+    companion object {
+        /** Suites with at least one tool in this build, in display order. */
+        fun visible(): List<ToolSuite> = entries.filter { it.tools.isNotEmpty() }
+    }
 }
 
 
@@ -231,7 +242,7 @@ fun HomeScreen(
                                     modifier = Modifier.padding(8.dp)
                                 )
 
-                                ToolSuite.values().forEach { category ->
+                                ToolSuite.visible().forEach { category ->
                                     CategoryButton(
                                         category = category,
                                         isSelected = viewModel.selectedCategory.value == category,
@@ -491,7 +502,7 @@ private fun FloatingSearchBar(
             modifier = Modifier.fillMaxWidth(),
             placeholder = {
                 Text(
-                    "Search across all ${ToolSuite.values().sumOf {
+                    "Search across all ${ToolSuite.visible().sumOf {
                         it.tools.size
                     }} tools and simulators...",
                     color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
@@ -671,5 +682,5 @@ private fun StatusBadge(
 
 // Helper functions
 private fun getAllTools(): List<StudioTool> {
-    return ToolSuite.values().flatMap { it.tools }
+    return ToolSuite.visible().flatMap { it.tools }
 }

@@ -1,2 +1,4 @@
 package `in`.aicortex.iso8583studio
-const val StudioVersion = "1.0.14"
+
+/** The app version, generated from `studioVersion` in composeApp/build.gradle.kts. */
+const val StudioVersion = BuildInfo.VERSION

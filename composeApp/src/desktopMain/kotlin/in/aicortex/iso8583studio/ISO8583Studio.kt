@@ -20,6 +20,7 @@ import cafe.adriel.voyager.navigator.Navigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import `in`.aicortex.iso8583studio.domain.service.posSimulatorService.avd.ProcessRegistry
 import `in`.aicortex.iso8583studio.analytics.Analytics
+import `in`.aicortex.iso8583studio.edition.EnabledTools
 import `in`.aicortex.iso8583studio.analytics.DesktopAnalyticsSink
 import `in`.aicortex.iso8583studio.analytics.StudioAnalytics
 import `in`.aicortex.iso8583studio.data.ExceptionHandler
@@ -148,7 +149,8 @@ class ISO8583Studio {
                         // ─── Analytics Consent (first run only) ─────────
                         // Asked once. Nothing has been transmitted at this point: StudioAnalytics.init()
                         // above is inert while consent is UNSET.
-                        if (AppSettings.analyticsConsent == AnalyticsConsent.UNSET) {
+                        // Never asked in the QA edition, which ships with analytics off.
+                        if (EnabledTools.analyticsEnabled && AppSettings.analyticsConsent == AnalyticsConsent.UNSET) {
                             AnalyticsConsentDialog(
                                 onAccept = {
                                     AppSettings.updateAnalyticsConsent(AnalyticsConsent.GRANTED)
@@ -244,7 +246,7 @@ class ISO8583Studio {
                                 // Quick Access
                                 MenuBarMenu("Quick Access", 0) {
                                     val topLabels = ToolUsageTracker.topLabels(8)
-                                    val allTools = StudioTool.values()
+                                    val allTools = EnabledTools.visibleTools()
                                     if (topLabels.isNotEmpty()) {
                                         for (label in topLabels) {
                                             val tool = allTools.firstOrNull { it.label == label }
@@ -260,100 +262,100 @@ class ISO8583Studio {
                                     }
                                 }
                                 // Simulators
-                                MenuBarMenu("Simulators", 1) {
-                                    MenuBarSubMenu("Transaction Processing") {
-                                        MenuBarItem("Host Simulator") { SimulatorSessionManager.openTool(StudioTool.HOST_SIMULATOR) }
-                                        MenuBarItem("POS Terminal") { SimulatorSessionManager.openTool(StudioTool.POS_TERMINAL) }
-                                        MenuBarItem("ATM Simulator") { SimulatorSessionManager.openTool(StudioTool.ATM_SIMULATOR) }
-                                        MenuBarItem("ECR Simulator") { SimulatorSessionManager.openTool(StudioTool.ECR_SIMULATOR) }
+                                if (EnabledTools.anyEnabled(StudioTool.HOST_SIMULATOR, StudioTool.POS_TERMINAL, StudioTool.ATM_SIMULATOR, StudioTool.ECR_SIMULATOR, StudioTool.HSM_SIMULATOR, StudioTool.HSM_COMMAND, StudioTool.APDU_SIMULATOR, StudioTool.PAYMENT_SWITCH, StudioTool.ACQUIRER_GATEWAY, StudioTool.ISSUER_SYSTEM)) MenuBarMenu("Simulators", 1) {
+                                    if (EnabledTools.anyEnabled(StudioTool.HOST_SIMULATOR, StudioTool.POS_TERMINAL, StudioTool.ATM_SIMULATOR, StudioTool.ECR_SIMULATOR)) MenuBarSubMenu("Transaction Processing") {
+                                        ToolMenuItem("Host Simulator", StudioTool.HOST_SIMULATOR)
+                                        ToolMenuItem("POS Terminal", StudioTool.POS_TERMINAL)
+                                        ToolMenuItem("ATM Simulator", StudioTool.ATM_SIMULATOR)
+                                        ToolMenuItem("ECR Simulator", StudioTool.ECR_SIMULATOR)
                                     }
-                                    MenuBarSubMenu("HSM & Security") {
-                                        MenuBarItem("HSM Simulator") { SimulatorSessionManager.openTool(StudioTool.HSM_SIMULATOR) }
-                                        MenuBarItem("HSM Host Console") { SimulatorSessionManager.openTool(StudioTool.HSM_COMMAND) }
-                                        MenuBarItem("APDU Simulator") { SimulatorSessionManager.openTool(StudioTool.APDU_SIMULATOR) }
+                                    if (EnabledTools.anyEnabled(StudioTool.HSM_SIMULATOR, StudioTool.HSM_COMMAND, StudioTool.APDU_SIMULATOR)) MenuBarSubMenu("HSM & Security") {
+                                        ToolMenuItem("HSM Simulator", StudioTool.HSM_SIMULATOR)
+                                        ToolMenuItem("HSM Host Console", StudioTool.HSM_COMMAND)
+                                        ToolMenuItem("APDU Simulator", StudioTool.APDU_SIMULATOR)
                                     }
-                                    MenuBarSubMenu("Network & Switching") {
-                                        MenuBarItem("Payment Switch") { SimulatorSessionManager.openTool(StudioTool.PAYMENT_SWITCH) }
-                                        MenuBarItem("Acquirer Gateway") { SimulatorSessionManager.openTool(StudioTool.ACQUIRER_GATEWAY) }
-                                        MenuBarItem("Issuer System") { SimulatorSessionManager.openTool(StudioTool.ISSUER_SYSTEM) }
+                                    if (EnabledTools.anyEnabled(StudioTool.PAYMENT_SWITCH, StudioTool.ACQUIRER_GATEWAY, StudioTool.ISSUER_SYSTEM)) MenuBarSubMenu("Network & Switching") {
+                                        ToolMenuItem("Payment Switch", StudioTool.PAYMENT_SWITCH)
+                                        ToolMenuItem("Acquirer Gateway", StudioTool.ACQUIRER_GATEWAY)
+                                        ToolMenuItem("Issuer System", StudioTool.ISSUER_SYSTEM)
                                     }
                                 }
                                 // Tools
-                                MenuBarMenu("Tools", 2) {
-                                    MenuBarSubMenu("EMV & Card Tools") {
-                                        MenuBarItem("EMV 4.1 Crypto") { SimulatorSessionManager.openTool(StudioTool.EMV_41_CRYPTO) }
-                                        MenuBarItem("EMV 4.2 Crypto") { SimulatorSessionManager.openTool(StudioTool.EMV_42_CRYPTO) }
-                                        MenuBarItem("MasterCard Crypto") { SimulatorSessionManager.openTool(StudioTool.MASTERCARD_CRYPTO) }
-                                        MenuBarItem("VSDC Crypto") { SimulatorSessionManager.openTool(StudioTool.VSDC_CRYPTO) }
-                                        MenuBarItem("SDA Verification") { SimulatorSessionManager.openTool(StudioTool.SDA_VERIFICATION) }
-                                        MenuBarItem("DDA Verification") { SimulatorSessionManager.openTool(StudioTool.DDA_VERIFICATION) }
+                                if (EnabledTools.anyEnabled(StudioTool.EMV_41_CRYPTO, StudioTool.EMV_42_CRYPTO, StudioTool.MASTERCARD_CRYPTO, StudioTool.VSDC_CRYPTO, StudioTool.SDA_VERIFICATION, StudioTool.DDA_VERIFICATION, StudioTool.CAP_TOKEN, StudioTool.HCE_VISA, StudioTool.SECURE_MESSAGING, StudioTool.ATR_PARSER, StudioTool.EMV_DATA_PARSER, StudioTool.EMV_TAG_DICTIONARY, StudioTool.AES_CALCULATOR, StudioTool.DES_CALCULATOR, StudioTool.RSA_CALCULATOR, StudioTool.ECDSA_CALCULATOR, StudioTool.FPE_CALCULATOR, StudioTool.HASH_CALCULATOR, StudioTool.THALES_RSA, StudioTool.DEA_KEYS, StudioTool.KEYSHARE_GENERATOR, StudioTool.THALES_KEYS, StudioTool.FUTUREX_KEYS, StudioTool.ATALLA_KEYS, StudioTool.SAFENET_KEYS, StudioTool.THALES_KEY_BLOCKS, StudioTool.TR31_KEY_BLOCKS, StudioTool.RSA_DER_KEYS, StudioTool.SSL_CERTIFICATE, StudioTool.CVV_CALCULATOR, StudioTool.AMEX_CSC, StudioTool.MASTERCARD_CSC, StudioTool.DUKPT_ISO_9797, StudioTool.DUKPT_ISO_AES, StudioTool.ISO_IES_9797_1_MAC, StudioTool.ANSI_MAC, StudioTool.AS2805_MAC, StudioTool.TDES_CBC_MAC, StudioTool.HMAC_MAC, StudioTool.CMAC_MAC, StudioTool.RETAIL_MAC, StudioTool.MDC_HASH, StudioTool.PIN_BLOCK_GENERAL, StudioTool.PIN_BLOCK_AES, StudioTool.PIN_OFFSET_IBM, StudioTool.PIN_PVV, StudioTool.ZKA, StudioTool.BASE64_ENCODER, StudioTool.BASE94_ENCODER, StudioTool.BCD_CONVERTER, StudioTool.CHARACTER_ENCODER, StudioTool.CHECK_DIGIT, StudioTool.TRACK2_CODEC, StudioTool.MESSAGE_PARSER, StudioTool.AS2805_CALCULATOR, StudioTool.BITMAP_CALCULATOR, StudioTool.APDU_RESPONSE_QUERY)) MenuBarMenu("Tools", 2) {
+                                    if (EnabledTools.anyEnabled(StudioTool.EMV_41_CRYPTO, StudioTool.EMV_42_CRYPTO, StudioTool.MASTERCARD_CRYPTO, StudioTool.VSDC_CRYPTO, StudioTool.SDA_VERIFICATION, StudioTool.DDA_VERIFICATION, StudioTool.CAP_TOKEN, StudioTool.HCE_VISA, StudioTool.SECURE_MESSAGING, StudioTool.ATR_PARSER, StudioTool.EMV_DATA_PARSER, StudioTool.EMV_TAG_DICTIONARY)) MenuBarSubMenu("EMV & Card Tools") {
+                                        ToolMenuItem("EMV 4.1 Crypto", StudioTool.EMV_41_CRYPTO)
+                                        ToolMenuItem("EMV 4.2 Crypto", StudioTool.EMV_42_CRYPTO)
+                                        ToolMenuItem("MasterCard Crypto", StudioTool.MASTERCARD_CRYPTO)
+                                        ToolMenuItem("VSDC Crypto", StudioTool.VSDC_CRYPTO)
+                                        ToolMenuItem("SDA Verification", StudioTool.SDA_VERIFICATION)
+                                        ToolMenuItem("DDA Verification", StudioTool.DDA_VERIFICATION)
                                         MenuBarSeparator()
-                                        MenuBarItem("CAP Token") { SimulatorSessionManager.openTool(StudioTool.CAP_TOKEN) }
-                                        MenuBarItem("HCE Visa") { SimulatorSessionManager.openTool(StudioTool.HCE_VISA) }
-                                        MenuBarItem("Secure Messaging") { SimulatorSessionManager.openTool(StudioTool.SECURE_MESSAGING) }
+                                        ToolMenuItem("CAP Token", StudioTool.CAP_TOKEN)
+                                        ToolMenuItem("HCE Visa", StudioTool.HCE_VISA)
+                                        ToolMenuItem("Secure Messaging", StudioTool.SECURE_MESSAGING)
                                         MenuBarSeparator()
-                                        MenuBarItem("ATR Parser") { SimulatorSessionManager.openTool(StudioTool.ATR_PARSER) }
-                                        MenuBarItem("EMV Data Parser") { SimulatorSessionManager.openTool(StudioTool.EMV_DATA_PARSER) }
-                                        MenuBarItem("EMV Tag Dictionary") { SimulatorSessionManager.openTool(StudioTool.EMV_TAG_DICTIONARY) }
+                                        ToolMenuItem("ATR Parser", StudioTool.ATR_PARSER)
+                                        ToolMenuItem("EMV Data Parser", StudioTool.EMV_DATA_PARSER)
+                                        ToolMenuItem("EMV Tag Dictionary", StudioTool.EMV_TAG_DICTIONARY)
                                     }
-                                    MenuBarSubMenu("Cryptography") {
-                                        MenuBarItem("AES Calculator") { SimulatorSessionManager.openTool(StudioTool.AES_CALCULATOR) }
-                                        MenuBarItem("DES/3DES Calculator") { SimulatorSessionManager.openTool(StudioTool.DES_CALCULATOR) }
-                                        MenuBarItem("RSA Calculator") { SimulatorSessionManager.openTool(StudioTool.RSA_CALCULATOR) }
-                                        MenuBarItem("ECDSA Calculator") { SimulatorSessionManager.openTool(StudioTool.ECDSA_CALCULATOR) }
-                                        MenuBarItem("FPE Calculator") { SimulatorSessionManager.openTool(StudioTool.FPE_CALCULATOR) }
+                                    if (EnabledTools.anyEnabled(StudioTool.AES_CALCULATOR, StudioTool.DES_CALCULATOR, StudioTool.RSA_CALCULATOR, StudioTool.ECDSA_CALCULATOR, StudioTool.FPE_CALCULATOR, StudioTool.HASH_CALCULATOR, StudioTool.THALES_RSA)) MenuBarSubMenu("Cryptography") {
+                                        ToolMenuItem("AES Calculator", StudioTool.AES_CALCULATOR)
+                                        ToolMenuItem("DES/3DES Calculator", StudioTool.DES_CALCULATOR)
+                                        ToolMenuItem("RSA Calculator", StudioTool.RSA_CALCULATOR)
+                                        ToolMenuItem("ECDSA Calculator", StudioTool.ECDSA_CALCULATOR)
+                                        ToolMenuItem("FPE Calculator", StudioTool.FPE_CALCULATOR)
                                         MenuBarSeparator()
-                                        MenuBarItem("Hash Calculator") { SimulatorSessionManager.openTool(StudioTool.HASH_CALCULATOR) }
-                                        MenuBarItem("Thales RSA") { SimulatorSessionManager.openTool(StudioTool.THALES_RSA) }
+                                        ToolMenuItem("Hash Calculator", StudioTool.HASH_CALCULATOR)
+                                        ToolMenuItem("Thales RSA", StudioTool.THALES_RSA)
                                     }
-                                    MenuBarSubMenu("Key Management") {
-                                        MenuBarItem("DEA Keys") { SimulatorSessionManager.openTool(StudioTool.DEA_KEYS) }
-                                        MenuBarItem("Keyshare Generator") { SimulatorSessionManager.openTool(StudioTool.KEYSHARE_GENERATOR) }
+                                    if (EnabledTools.anyEnabled(StudioTool.DEA_KEYS, StudioTool.KEYSHARE_GENERATOR, StudioTool.THALES_KEYS, StudioTool.FUTUREX_KEYS, StudioTool.ATALLA_KEYS, StudioTool.SAFENET_KEYS, StudioTool.THALES_KEY_BLOCKS, StudioTool.TR31_KEY_BLOCKS, StudioTool.RSA_DER_KEYS, StudioTool.SSL_CERTIFICATE)) MenuBarSubMenu("Key Management") {
+                                        ToolMenuItem("DEA Keys", StudioTool.DEA_KEYS)
+                                        ToolMenuItem("Keyshare Generator", StudioTool.KEYSHARE_GENERATOR)
                                         MenuBarSeparator()
-                                        MenuBarItem("Thales Keys") { SimulatorSessionManager.openTool(StudioTool.THALES_KEYS) }
-                                        MenuBarItem("Futurex Keys") { SimulatorSessionManager.openTool(StudioTool.FUTUREX_KEYS) }
-                                        MenuBarItem("Atalla Keys") { SimulatorSessionManager.openTool(StudioTool.ATALLA_KEYS) }
-                                        MenuBarItem("SafeNet Keys") { SimulatorSessionManager.openTool(StudioTool.SAFENET_KEYS) }
+                                        ToolMenuItem("Thales Keys", StudioTool.THALES_KEYS)
+                                        ToolMenuItem("Futurex Keys", StudioTool.FUTUREX_KEYS)
+                                        ToolMenuItem("Atalla Keys", StudioTool.ATALLA_KEYS)
+                                        ToolMenuItem("SafeNet Keys", StudioTool.SAFENET_KEYS)
                                         MenuBarSeparator()
-                                        MenuBarItem("Thales Key Blocks") { SimulatorSessionManager.openTool(StudioTool.THALES_KEY_BLOCKS) }
-                                        MenuBarItem("TR-31 Key Blocks") { SimulatorSessionManager.openTool(StudioTool.TR31_KEY_BLOCKS) }
-                                        MenuBarItem("RSA DER Keys") { SimulatorSessionManager.openTool(StudioTool.RSA_DER_KEYS) }
-                                        MenuBarItem("SSL Certificate") { SimulatorSessionManager.openTool(StudioTool.SSL_CERTIFICATE) }
+                                        ToolMenuItem("Thales Key Blocks", StudioTool.THALES_KEY_BLOCKS)
+                                        ToolMenuItem("TR-31 Key Blocks", StudioTool.TR31_KEY_BLOCKS)
+                                        ToolMenuItem("RSA DER Keys", StudioTool.RSA_DER_KEYS)
+                                        ToolMenuItem("SSL Certificate", StudioTool.SSL_CERTIFICATE)
                                     }
-                                    MenuBarSubMenu("Payment & MAC") {
-                                        MenuBarItem("CVV Calculator") { SimulatorSessionManager.openTool(StudioTool.CVV_CALCULATOR) }
-                                        MenuBarItem("Amex CSC") { SimulatorSessionManager.openTool(StudioTool.AMEX_CSC) }
-                                        MenuBarItem("MasterCard CVC3") { SimulatorSessionManager.openTool(StudioTool.MASTERCARD_CSC) }
+                                    if (EnabledTools.anyEnabled(StudioTool.CVV_CALCULATOR, StudioTool.AMEX_CSC, StudioTool.MASTERCARD_CSC, StudioTool.DUKPT_ISO_9797, StudioTool.DUKPT_ISO_AES, StudioTool.ISO_IES_9797_1_MAC, StudioTool.ANSI_MAC, StudioTool.AS2805_MAC, StudioTool.TDES_CBC_MAC, StudioTool.HMAC_MAC, StudioTool.CMAC_MAC, StudioTool.RETAIL_MAC, StudioTool.MDC_HASH, StudioTool.PIN_BLOCK_GENERAL, StudioTool.PIN_BLOCK_AES, StudioTool.PIN_OFFSET_IBM, StudioTool.PIN_PVV, StudioTool.ZKA)) MenuBarSubMenu("Payment & MAC") {
+                                        ToolMenuItem("CVV Calculator", StudioTool.CVV_CALCULATOR)
+                                        ToolMenuItem("Amex CSC", StudioTool.AMEX_CSC)
+                                        ToolMenuItem("MasterCard CVC3", StudioTool.MASTERCARD_CSC)
                                         MenuBarSeparator()
-                                        MenuBarItem("DUKPT ISO 9797") { SimulatorSessionManager.openTool(StudioTool.DUKPT_ISO_9797) }
-                                        MenuBarItem("DUKPT AES") { SimulatorSessionManager.openTool(StudioTool.DUKPT_ISO_AES) }
-                                        MenuBarItem("ISO/IES 9797-1 MAC") { SimulatorSessionManager.openTool(StudioTool.ISO_IES_9797_1_MAC) }
-                                        MenuBarItem("ANSI MAC") { SimulatorSessionManager.openTool(StudioTool.ANSI_MAC) }
-                                        MenuBarItem("AS2805 MAC") { SimulatorSessionManager.openTool(StudioTool.AS2805_MAC) }
-                                        MenuBarItem("3DES CBC MAC") { SimulatorSessionManager.openTool(StudioTool.TDES_CBC_MAC) }
-                                        MenuBarItem("HMAC") { SimulatorSessionManager.openTool(StudioTool.HMAC_MAC) }
-                                        MenuBarItem("CMAC") { SimulatorSessionManager.openTool(StudioTool.CMAC_MAC) }
-                                        MenuBarItem("Retail MAC") { SimulatorSessionManager.openTool(StudioTool.RETAIL_MAC) }
-                                        MenuBarItem("MDC Hash") { SimulatorSessionManager.openTool(StudioTool.MDC_HASH) }
+                                        ToolMenuItem("DUKPT ISO 9797", StudioTool.DUKPT_ISO_9797)
+                                        ToolMenuItem("DUKPT AES", StudioTool.DUKPT_ISO_AES)
+                                        ToolMenuItem("ISO/IES 9797-1 MAC", StudioTool.ISO_IES_9797_1_MAC)
+                                        ToolMenuItem("ANSI MAC", StudioTool.ANSI_MAC)
+                                        ToolMenuItem("AS2805 MAC", StudioTool.AS2805_MAC)
+                                        ToolMenuItem("3DES CBC MAC", StudioTool.TDES_CBC_MAC)
+                                        ToolMenuItem("HMAC", StudioTool.HMAC_MAC)
+                                        ToolMenuItem("CMAC", StudioTool.CMAC_MAC)
+                                        ToolMenuItem("Retail MAC", StudioTool.RETAIL_MAC)
+                                        ToolMenuItem("MDC Hash", StudioTool.MDC_HASH)
                                         MenuBarSeparator()
-                                        MenuBarItem("PIN Block General") { SimulatorSessionManager.openTool(StudioTool.PIN_BLOCK_GENERAL) }
-                                        MenuBarItem("AES PIN Block") { SimulatorSessionManager.openTool(StudioTool.PIN_BLOCK_AES) }
-                                        MenuBarItem("PIN Offset (IBM)") { SimulatorSessionManager.openTool(StudioTool.PIN_OFFSET_IBM) }
-                                        MenuBarItem("PIN PVV") { SimulatorSessionManager.openTool(StudioTool.PIN_PVV) }
-                                        MenuBarItem("ZKA") { SimulatorSessionManager.openTool(StudioTool.ZKA) }
+                                        ToolMenuItem("PIN Block General", StudioTool.PIN_BLOCK_GENERAL)
+                                        ToolMenuItem("AES PIN Block", StudioTool.PIN_BLOCK_AES)
+                                        ToolMenuItem("PIN Offset (IBM)", StudioTool.PIN_OFFSET_IBM)
+                                        ToolMenuItem("PIN PVV", StudioTool.PIN_PVV)
+                                        ToolMenuItem("ZKA", StudioTool.ZKA)
                                     }
-                                    MenuBarSubMenu("Data Converters") {
-                                        MenuBarItem("Base64 Encoder") { SimulatorSessionManager.openTool(StudioTool.BASE64_ENCODER) }
-                                        MenuBarItem("Base94 Encoder") { SimulatorSessionManager.openTool(StudioTool.BASE94_ENCODER) }
-                                        MenuBarItem("BCD Converter") { SimulatorSessionManager.openTool(StudioTool.BCD_CONVERTER) }
-                                        MenuBarItem("Character Encoder") { SimulatorSessionManager.openTool(StudioTool.CHARACTER_ENCODER) }
-                                        MenuBarItem("Check Digit") { SimulatorSessionManager.openTool(StudioTool.CHECK_DIGIT) }
-                                        MenuBarItem("Track 2 Codec") { SimulatorSessionManager.openTool(StudioTool.TRACK2_CODEC) }
+                                    if (EnabledTools.anyEnabled(StudioTool.BASE64_ENCODER, StudioTool.BASE94_ENCODER, StudioTool.BCD_CONVERTER, StudioTool.CHARACTER_ENCODER, StudioTool.CHECK_DIGIT, StudioTool.TRACK2_CODEC, StudioTool.MESSAGE_PARSER, StudioTool.AS2805_CALCULATOR, StudioTool.BITMAP_CALCULATOR, StudioTool.APDU_RESPONSE_QUERY)) MenuBarSubMenu("Data Converters") {
+                                        ToolMenuItem("Base64 Encoder", StudioTool.BASE64_ENCODER)
+                                        ToolMenuItem("Base94 Encoder", StudioTool.BASE94_ENCODER)
+                                        ToolMenuItem("BCD Converter", StudioTool.BCD_CONVERTER)
+                                        ToolMenuItem("Character Encoder", StudioTool.CHARACTER_ENCODER)
+                                        ToolMenuItem("Check Digit", StudioTool.CHECK_DIGIT)
+                                        ToolMenuItem("Track 2 Codec", StudioTool.TRACK2_CODEC)
                                         MenuBarSeparator()
-                                        MenuBarItem("Message Parser") { SimulatorSessionManager.openTool(StudioTool.MESSAGE_PARSER) }
-                                        MenuBarItem("AS2805 Calculator") { SimulatorSessionManager.openTool(StudioTool.AS2805_CALCULATOR) }
-                                        MenuBarItem("Bitmap Calculator") { SimulatorSessionManager.openTool(StudioTool.BITMAP_CALCULATOR) }
-                                        MenuBarItem("APDU Response Query") { SimulatorSessionManager.openTool(StudioTool.APDU_RESPONSE_QUERY) }
+                                        ToolMenuItem("Message Parser", StudioTool.MESSAGE_PARSER)
+                                        ToolMenuItem("AS2805 Calculator", StudioTool.AS2805_CALCULATOR)
+                                        ToolMenuItem("Bitmap Calculator", StudioTool.BITMAP_CALCULATOR)
+                                        ToolMenuItem("APDU Response Query", StudioTool.APDU_RESPONSE_QUERY)
                                     }
                                 }
                                 // Configuration
@@ -598,6 +600,20 @@ private fun SessionContent(
             )
         }
 
+        SimulatorType.ECR -> {
+            val service = session.ecrService
+            if (service != null) {
+                `in`.aicortex.iso8583studio.ui.screens.ecrSimulator.EcrSimulatorScreen(
+                    service = service,
+                    onBack = onBack,
+                    onSaveConfig = { updatedConfig ->
+                        appState.value.updateConfig(updatedConfig)
+                        appState.value.save()
+                    },
+                )
+            }
+        }
+
         SimulatorType.TOOL -> {
             val screen = session.toolScreen
             if (screen != null) {
@@ -691,5 +707,13 @@ private fun PopOutWindowTopBar(
                 }
             }
         }
+    }
+}
+
+/** A menu entry that opens [tool], shown only when the tool is in [EnabledTools.ENABLED]. */
+@Composable
+private fun ToolMenuItem(label: String, tool: StudioTool) {
+    if (EnabledTools.isEnabled(tool)) {
+        MenuBarItem(label) { SimulatorSessionManager.openTool(tool) }
     }
 }

@@ -3,6 +3,7 @@ package `in`.aicortex.iso8583studio.analytics
 import cafe.adriel.voyager.core.screen.Screen
 import io.github.frankois944.googleAnalyticsKMPTracker.Tracker
 import `in`.aicortex.iso8583studio.data.model.AnalyticsConsent
+import `in`.aicortex.iso8583studio.edition.EnabledTools
 import `in`.aicortex.iso8583studio.data.model.AppSettings
 import `in`.aicortex.iso8583studio.data.model.StudioTool
 import `in`.aicortex.iso8583studio.ui.navigation.stateConfigs.SimulatorType
@@ -63,8 +64,10 @@ object StudioAnalytics {
     @Volatile
     private var currentScreenName: String = "Unknown"
 
+    // The QA edition never reports: no tracker is created, so no events and no IP/geo lookup.
     private val isConfigured: Boolean
-        get() = !MEASUREMENT_ID.contains("XXXX") && API_SECRET != "REPLACE_ME"
+        get() = EnabledTools.analyticsEnabled &&
+            !MEASUREMENT_ID.contains("XXXX") && API_SECRET != "REPLACE_ME"
 
     private val enabled: Boolean
         get() = tracker != null && AppSettings.analyticsConsent.isGranted
@@ -76,7 +79,7 @@ object StudioAnalytics {
 
     /** Reverse index of [ToolSuite.tools], giving each tool a reportable category. */
     private val suiteByTool: Map<StudioTool, ToolSuite> by lazy {
-        ToolSuite.entries.flatMap { suite -> suite.tools.map { it to suite } }.toMap()
+        ToolSuite.entries.flatMap { suite -> suite.allTools.map { it to suite } }.toMap()
     }
 
     // ---- Lifecycle ---------------------------------------------------------------------

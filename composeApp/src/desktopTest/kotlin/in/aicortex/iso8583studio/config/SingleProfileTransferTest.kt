@@ -15,14 +15,13 @@ import kotlin.test.assertTrue
 /**
  * Covers single-profile export/import (as opposed to whole-workspace export/import).
  *
- * NOTE: [UnifiedSimulatorState.save] writes `Iso8583Studio_simulators.json` into the process
- * working directory, which under Gradle is `composeApp/` — a real, version-controlled workspace
- * file. `importProfile` calls `save()`, so these tests would otherwise clobber it. Each test
- * therefore snapshots that file up front and restores it afterwards.
+ * NOTE: [UnifiedSimulatorState.save] writes `Iso8583Studio_simulators.json` into the app home
+ * (`StudioPaths`), which Gradle points at `build/test-home` for tests. `importProfile` calls
+ * `save()`, so each test still snapshots that file up front and restores it afterwards.
  */
 class SingleProfileTransferTest {
 
-    private val workspaceFile = File("Iso8583Studio_simulators.json")
+    private val workspaceFile = `in`.aicortex.iso8583studio.data.StudioPaths.simulatorsFile("Iso8583Studio")
     private var workspaceBackup: ByteArray? = null
 
     @BeforeTest

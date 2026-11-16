@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.PopupProperties
 import `in`.aicortex.iso8583studio.data.model.StudioTool
+import `in`.aicortex.iso8583studio.edition.EnabledTools
 import `in`.aicortex.iso8583studio.ui.navigation.stateConfigs.SimulatorType
 
 // ─── Simulator Type Visual Config ────────────────────────────────────────
@@ -421,7 +422,7 @@ private fun TabBarSearch(onToolSelected: (StudioTool) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
 
-    val allTools = remember { StudioTool.values().toList() }
+    val allTools = remember { EnabledTools.visibleTools() }
     val results = remember(query) {
         if (query.isBlank()) emptyList()
         else allTools.filter {

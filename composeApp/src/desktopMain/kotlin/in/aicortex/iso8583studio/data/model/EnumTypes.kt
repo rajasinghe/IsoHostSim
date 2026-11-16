@@ -47,10 +47,10 @@ enum class StudioTool(
         screen = Destination.HsmCommandConfig
     ),
     ECR_SIMULATOR(
-        "ECR Simulstor",
-        "Electronic Cash Register simulation",
+        "ECR Simulator",
+        "Cash register driving a payment terminal",
         Icons.Default.PointOfSale,
-        status = DevelopmentStatus.UNDER_DEVELOPMENT,
+        isNew = true,
         screen = Destination.EcrSimulatorConfigScreen
     ),
 

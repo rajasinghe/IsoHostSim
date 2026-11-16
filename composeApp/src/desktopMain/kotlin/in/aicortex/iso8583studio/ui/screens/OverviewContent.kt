@@ -173,7 +173,7 @@ private fun HeaderDashboard() {
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 MetricItem("${
-                    ToolSuite.values().sumOf {
+                    ToolSuite.visible().sumOf {
                         it.tools.size
                     } - ToolSuite.CORE_SIMULATORS.tools.size
                 }+", "Tools", Icons.Default.Build, Modifier.weight(1f))

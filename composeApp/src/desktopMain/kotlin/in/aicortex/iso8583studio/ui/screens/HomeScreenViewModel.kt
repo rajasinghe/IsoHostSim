@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.lifecycle.ViewModel
 import cafe.adriel.voyager.core.model.ScreenModel
 import `in`.aicortex.iso8583studio.data.model.StudioTool
+import `in`.aicortex.iso8583studio.edition.EnabledTools
 import `in`.aicortex.iso8583studio.ui.screens.components.DevelopmentStatus
 import `in`.aicortex.iso8583studio.ui.screens.landing.ToolSuite
 import `in`.aicortex.iso8583studio.ui.session.ToolUsageTracker
@@ -26,7 +27,7 @@ class HomeScreenViewModel : ScreenModel {
     var searchQuery = mutableStateOf("")
     var selectedCategory = mutableStateOf<ToolSuite?>(null)
     var isLoaded = mutableStateOf(false)
-    val tools = StudioTool.values()
+    val tools = EnabledTools.visibleTools()
     var overviewVisibility = mutableStateOf(false)
     var displayQuoteText =  mutableStateOf("")
 
