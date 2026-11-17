@@ -1,14 +1,14 @@
 package io.cryptocalc.crypto.calculators
 
-import ai.cortex.core.IsoUtil
-import ai.cortex.core.types.AesCryptoInput
-import ai.cortex.core.types.AesCryptoResult
-import ai.cortex.core.types.CalculatorCategory
-import ai.cortex.core.types.CipherMode
-import ai.cortex.core.types.CryptoAlgorithm
-import ai.cortex.core.types.KeySize
-import ai.cortex.core.types.OperationType
-import ai.cortex.core.types.PaddingMethods
+import lk.cba.isocore.IsoUtil
+import lk.cba.isocore.types.AesCryptoInput
+import lk.cba.isocore.types.AesCryptoResult
+import lk.cba.isocore.types.CalculatorCategory
+import lk.cba.isocore.types.CipherMode
+import lk.cba.isocore.types.CryptoAlgorithm
+import lk.cba.isocore.types.KeySize
+import lk.cba.isocore.types.OperationType
+import lk.cba.isocore.types.PaddingMethods
 import io.cryptocalc.core.*
 import io.cryptocalc.crypto.engines.encryption.models.SymmetricEncryptionEngineParameters
 

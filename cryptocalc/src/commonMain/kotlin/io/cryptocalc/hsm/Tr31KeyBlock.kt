@@ -1,8 +1,8 @@
 package io.cryptocalc.hsm
 
-import ai.cortex.core.hexToBytes
-import ai.cortex.core.toHexUpper
-import ai.cortex.core.types.CipherMode
+import lk.cba.isocore.hexToBytes
+import lk.cba.isocore.toHexUpper
+import lk.cba.isocore.types.CipherMode
 import io.cryptocalc.crypto.primitives.Aes
 import io.cryptocalc.crypto.primitives.BlockCipher
 import io.cryptocalc.crypto.primitives.Cmac

@@ -1,6 +1,6 @@
 package io.cryptocalc.crypto.primitives
 
-import ai.cortex.core.types.PaddingMethods
+import lk.cba.isocore.types.PaddingMethods
 
 /**
  * ISO/IEC 9797-1 block-cipher MACs and the payment-industry names layered on top of them:

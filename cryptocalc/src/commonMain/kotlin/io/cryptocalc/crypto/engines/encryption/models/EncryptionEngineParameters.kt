@@ -1,6 +1,6 @@
 package io.cryptocalc.crypto.engines.encryption.models
 
-import ai.cortex.core.types.AlgorithmType
+import lk.cba.isocore.types.AlgorithmType
 
 interface EncryptionEngineParameters<T : AlgorithmType>
 interface DecryptionEngineParameters<T : AlgorithmType>

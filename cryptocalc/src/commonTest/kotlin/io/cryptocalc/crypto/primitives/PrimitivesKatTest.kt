@@ -1,9 +1,9 @@
 package io.cryptocalc.crypto.primitives
 
-import ai.cortex.core.hexToBytes
-import ai.cortex.core.toHexUpper
-import ai.cortex.core.types.CipherMode
-import ai.cortex.core.types.PaddingMethods
+import lk.cba.isocore.hexToBytes
+import lk.cba.isocore.toHexUpper
+import lk.cba.isocore.types.CipherMode
+import lk.cba.isocore.types.PaddingMethods
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertContentEquals

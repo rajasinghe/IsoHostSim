@@ -1,6 +1,6 @@
 package io.cryptocalc.emv
 
-import ai.cortex.core.toHexUpper
+import lk.cba.isocore.toHexUpper
 
 /** ISO/IEC 7816-3 Answer To Reset parser. */
 object Atr {

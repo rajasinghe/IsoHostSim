@@ -1,8 +1,8 @@
 package io.cryptocalc.crypto.engines.encryption.models
 
-import ai.cortex.core.types.AlgorithmType
-import ai.cortex.core.types.CipherMode
-import ai.cortex.core.types.PaddingMethods
+import lk.cba.isocore.types.AlgorithmType
+import lk.cba.isocore.types.CipherMode
+import lk.cba.isocore.types.PaddingMethods
 import io.cryptocalc.crypto.engines.encryption.models.EncryptionEngineParameters
 
 data class SymmetricEncryptionEngineParameters(

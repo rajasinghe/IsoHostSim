@@ -25,7 +25,6 @@ import org.json.JSONObject;
 
 /**
  *
- * @author HP PC
  */
 public class DoSaleRequest extends Utility {
 
@@ -345,7 +344,7 @@ public class DoSaleRequest extends Utility {
         //fIND PAX COM PORT
         String ComPort = "";
 
-        ComPort = PaxPort.discover();   //gimhan added - shared port owner, port stays open so a cancel can use it
+        ComPort = PaxPort.discover();   // shared port owner, port stays open so a cancel can use it
 
         if (PortMatch.isUsablePortName(ComPort)) {   // ISO8583Studio patch: was ComPort.contains("COM")
 
@@ -360,7 +359,7 @@ public class DoSaleRequest extends Utility {
 
         OutputStream outputStream;
 
-        SerialPort port = PaxPort.acquire(ComPort);   //gimhan added - shared port owner, port stays open so a cancel can use it
+        SerialPort port = PaxPort.acquire(ComPort);   // shared port owner, port stays open so a cancel can use it
 
         if (port == null) {
                 LogWrite("NormalLog", "RequestDoSale_USB", "Com Port Open Error :" + ComPort);
@@ -505,7 +504,7 @@ public class DoSaleRequest extends Utility {
             }
 
             if (numRead > 10) {
-                //gimhan added - a cancel running on another thread owns any ACK/NAK that lands here
+                // a cancel running on another thread owns any ACK/NAK that lands here
                 if (PaxPort.isCancelReply(new String(DoSaleReadBuffer, java.nio.charset.StandardCharsets.UTF_8))) {
                     java.util.Arrays.fill(DoSaleReadBuffer, (byte) 0);
                     y++;

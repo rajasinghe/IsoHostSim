@@ -9,7 +9,7 @@ value here is the token set exported as CSS custom properties.
 Everything is generated from a single file:
 
 ```
-composeApp/src/desktopMain/kotlin/in/aicortex/iso8583studio/ui/AppTheme.kt
+composeApp/src/desktopMain/kotlin/lk/cba/isohostsim/ui/AppTheme.kt
 ```
 
 If you change a colour, type style or corner radius there, regenerate rather than hand-editing

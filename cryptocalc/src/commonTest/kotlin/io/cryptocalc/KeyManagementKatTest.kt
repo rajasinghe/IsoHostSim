@@ -1,8 +1,8 @@
 package io.cryptocalc
 
-import ai.cortex.core.Ebcdic
-import ai.cortex.core.hexToBytes
-import ai.cortex.core.toHexUpper
+import lk.cba.isocore.Ebcdic
+import lk.cba.isocore.hexToBytes
+import lk.cba.isocore.toHexUpper
 import io.cryptocalc.asn1.Pkcs
 import io.cryptocalc.crypto.primitives.ExtraDigests
 import io.cryptocalc.hsm.ThalesRsaEncoding

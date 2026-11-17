@@ -1,8 +1,8 @@
 package io.cryptocalc.codec
 
-import ai.cortex.core.Ebcdic
-import ai.cortex.core.hexToBytes
-import ai.cortex.core.toHexUpper
+import lk.cba.isocore.Ebcdic
+import lk.cba.isocore.hexToBytes
+import lk.cba.isocore.toHexUpper
 import com.ionspin.kotlin.bignum.integer.BigInteger
 import io.cryptocalc.math.BigInt
 

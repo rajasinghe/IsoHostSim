@@ -1,6 +1,6 @@
 package io.cryptocalc.crypto.primitives
 
-import ai.cortex.core.toHexUpper
+import lk.cba.isocore.toHexUpper
 
 /**
  * Cryptographically secure random bytes from the platform: `java.security.SecureRandom` on the

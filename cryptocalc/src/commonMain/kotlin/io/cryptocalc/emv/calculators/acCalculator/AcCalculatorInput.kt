@@ -1,11 +1,11 @@
 package io.cryptocalc.emv.calculators.acCalculator
 
-import ai.cortex.core.types.CalculatorInput
-import ai.cortex.core.types.CalculatorResult
-import ai.cortex.core.types.CryptogramType
-import ai.cortex.core.types.OperationType
-import ai.cortex.core.types.PaddingMethods
-import ai.cortex.core.types.ResultMetadata
+import lk.cba.isocore.types.CalculatorInput
+import lk.cba.isocore.types.CalculatorResult
+import lk.cba.isocore.types.CryptogramType
+import lk.cba.isocore.types.OperationType
+import lk.cba.isocore.types.PaddingMethods
+import lk.cba.isocore.types.ResultMetadata
 import kotlinx.serialization.Serializable
 
 @Serializable

@@ -1,7 +1,7 @@
 package io.cryptocalc.emv
 
-import ai.cortex.core.CryptoUtils
-import ai.cortex.core.xorWith
+import lk.cba.isocore.CryptoUtils
+import lk.cba.isocore.xorWith
 import io.cryptocalc.crypto.primitives.Tdes
 
 /**

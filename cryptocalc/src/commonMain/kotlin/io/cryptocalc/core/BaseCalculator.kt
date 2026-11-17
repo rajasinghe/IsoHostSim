@@ -1,8 +1,8 @@
 package io.cryptocalc.core
 
-import ai.cortex.core.types.CalculatorInput
-import ai.cortex.core.types.CalculatorResult
-import ai.cortex.core.types.ResultMetadata
+import lk.cba.isocore.types.CalculatorInput
+import lk.cba.isocore.types.CalculatorResult
+import lk.cba.isocore.types.ResultMetadata
 import io.cryptocalc.crypto.engines.encryption.EMVEngines
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime

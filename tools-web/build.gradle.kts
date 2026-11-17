@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
 
 // The browser build of the calculator tools: a Kotlin/Wasm executable that renders the
-// shared :tools-ui screens with Compose and is served from iso8583.studio/app/.
+// shared :tools-ui screens with Compose and is served from the web tools site under /app/.
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.composeMultiplatform)

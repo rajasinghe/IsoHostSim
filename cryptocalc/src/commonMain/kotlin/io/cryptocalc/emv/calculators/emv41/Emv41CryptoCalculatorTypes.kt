@@ -1,12 +1,12 @@
 package io.cryptocalc.emv.calculators.emv41
 
-import ai.cortex.core.types.CalculatorInput
-import ai.cortex.core.types.CalculatorResult
-import ai.cortex.core.types.KeyParity
-import ai.cortex.core.types.OperationType
-import ai.cortex.core.types.ResultMetadata
-import ai.cortex.core.types.SessionKeyType
-import ai.cortex.core.types.UdkDerivationType
+import lk.cba.isocore.types.CalculatorInput
+import lk.cba.isocore.types.CalculatorResult
+import lk.cba.isocore.types.KeyParity
+import lk.cba.isocore.types.OperationType
+import lk.cba.isocore.types.ResultMetadata
+import lk.cba.isocore.types.SessionKeyType
+import lk.cba.isocore.types.UdkDerivationType
 import kotlinx.serialization.Serializable
 
 @Serializable

@@ -1,7 +1,7 @@
 package io.cryptocalc.crypto.engines.applicationCryptogram
 
-import ai.cortex.core.types.AlgorithmType
-import ai.cortex.core.types.CryptoAlgorithm
+import lk.cba.isocore.types.AlgorithmType
+import lk.cba.isocore.types.CryptoAlgorithm
 import io.cryptocalc.crypto.engines.Engine
 import io.cryptocalc.emv.calculators.acCalculator.AcCalculatorInput
 

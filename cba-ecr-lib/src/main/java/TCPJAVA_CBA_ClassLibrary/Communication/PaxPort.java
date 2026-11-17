@@ -22,7 +22,6 @@ import org.json.JSONObject;
  *
  * Supersedes USbConnector for anything that has to co-operate with a cancel.
  *
- * @author gimhan added
  */
 public class PaxPort {
 
@@ -68,14 +67,16 @@ public class PaxPort {
             }
         }
         // ISO8583Studio patch: on Linux the PAX description is not reported, so fall back to
-        // the first ttyACM*/ttyUSB* port. Only reached when no PAX-described port exists, so
-        // Windows discovery is unchanged.
+        // the lowest-numbered ttyACM*/ttyUSB* port (see PortMatch.pickLinuxPort). Only reached
+        // when no PAX-described port exists, so Windows discovery is unchanged.
         if (comPort.isEmpty()) {
+            java.util.List<String> names = new java.util.ArrayList<>();
             for (SerialPort candidate : portList) {
-                if (PortMatch.isPaxPort(candidate.getSystemPortName(), candidate.getDescriptivePortName())) {
-                    comPort = candidate.getSystemPortName();
-                    break;
-                }
+                names.add(candidate.getSystemPortName());
+            }
+            String picked = PortMatch.pickLinuxPort(names);
+            if (picked != null) {
+                comPort = picked;
             }
         }
         return comPort;

@@ -1,7 +1,7 @@
 package io.cryptocalc.emv
 
-import ai.cortex.core.CryptoUtils
-import ai.cortex.core.hexToBytes
+import lk.cba.isocore.CryptoUtils
+import lk.cba.isocore.hexToBytes
 import io.cryptocalc.card.CardVerification
 import io.cryptocalc.crypto.primitives.Mac
 import io.cryptocalc.crypto.primitives.Tdes

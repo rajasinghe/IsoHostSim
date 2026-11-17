@@ -1,6 +1,6 @@
 package io.cryptocalc.x509
 
-import ai.cortex.core.toHexUpper
+import lk.cba.isocore.toHexUpper
 import io.cryptocalc.asn1.Der
 import io.cryptocalc.asn1.DerNode
 import io.cryptocalc.asn1.Oids

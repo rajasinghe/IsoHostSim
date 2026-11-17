@@ -1,8 +1,8 @@
 package io.cryptocalc.emv
 
-import ai.cortex.core.CryptoUtils
-import ai.cortex.core.hexToBytes
-import ai.cortex.core.toHexUpper
+import lk.cba.isocore.CryptoUtils
+import lk.cba.isocore.hexToBytes
+import lk.cba.isocore.toHexUpper
 import io.cryptocalc.crypto.primitives.Digests
 import io.cryptocalc.crypto.primitives.Tdes
 

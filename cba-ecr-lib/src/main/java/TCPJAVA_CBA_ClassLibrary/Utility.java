@@ -38,7 +38,6 @@ import javax.crypto.spec.SecretKeySpec;
 
 /**
  *
- * @author HP PC
  */
 public class Utility {
 

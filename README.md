@@ -1,7 +1,5 @@
 # ISO8583Studio
 
-**Website & docs: [iso8583.studio](https://iso8583.studio/)** · [Download](https://iso8583.studio/download) · [Simulators](https://iso8583.studio/simulator) · [Tools](https://iso8583.studio/docs)
-
 ![ISO8583Studio](https://img.shields.io/badge/ISO8583-Studio-blue?style=for-the-badge)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF?style=for-the-badge&logo=kotlin)
 ![Compose](https://img.shields.io/badge/Compose-Desktop-4285F4?style=for-the-badge)
@@ -104,22 +102,13 @@ ISO8583Studio is a comprehensive desktop application designed for financial inst
 
 ### Download Options
 
-#### Option 1: Installers (Recommended)
-Windows and macOS installers are published on the [download page](https://iso8583.studio/download):
-
-```bash
-# Windows
-https://github.com/hpkaushik121/Iso8583studio/releases/download/1.0.0/ISO8583Studio-1.0.0.exe
-# macOS
-https://github.com/hpkaushik121/Iso8583studio/releases/download/1.0.0/ISO8583Studio-1.0.0.dmg
-```
-
-Both bundle their own Java runtime. The builds are not yet code-signed, so expect a SmartScreen / Gatekeeper prompt on first launch. There is no prebuilt Linux package yet — build from source (Option 2) or run `./gradlew :composeApp:packageDeb`.
+#### Option 1: Installers
+Build them from source: `./gradlew :composeApp:packageRpm` (Fedora), `:composeApp:packageDeb` (Debian/Ubuntu), or `packageMsi` / `packageExe` on Windows. They bundle their own Java runtime and are not code-signed.
 
 #### Option 2: Build from Source
 ```bash
 # Clone the repository
-git clone https://github.com/hpkaushik121/Iso8583studio.git
+git clone <repository-url>
 cd Iso8583studio
 
 # Build the project
@@ -130,7 +119,7 @@ cd Iso8583studio
 ```
 
 #### Option 3: Run the tools in the browser
-The calculator suites (EMV, cryptographic, key management, PIN/MAC/DUKPT, card validation, data converters) are the same Kotlin code compiled to WebAssembly and hosted at [iso8583.studio/tools/app](https://iso8583.studio/tools/app). The deep link for a tool is `/tools/app/#<tool-id>` (ids in `tools-ui/.../tools/ToolCatalog.kt`). To build it locally:
+The calculator suites (EMV, cryptographic, key management, PIN/MAC/DUKPT, card validation, data converters) are the same Kotlin code compiled to WebAssembly. The deep link for a tool is `/tools/app/#<tool-id>` (ids in `tools-ui/.../tools/ToolCatalog.kt`). To build it locally:
 
 ```bash
 # Produce web/public/app (Kotlin/Wasm bundle, ~15 MB raw)
@@ -583,7 +572,7 @@ grep "Processing time" iso8583.log
 
 1. **Clone Repository**
 ```bash
-git clone https://github.com/hpkaushik121/Iso8583studio.git
+git clone <repository-url>
 cd Iso8583studio
 ```
 
@@ -674,10 +663,7 @@ The AGPL is a strong copyleft license: if you modify ISO8583Studio and distribut
 
 ## 📞 Support
 
-- **GitHub Issues**: [Report bugs and request features](https://github.com/hpkaushik121/Iso8583studio/issues)
-- **Website**: [iso8583.studio](https://iso8583.studio/) — documentation for every simulator and tool
-- **Documentation**: [Wiki pages](https://github.com/hpkaushik121/Iso8583studio/wiki)
-- **Releases**: [Download latest versions](https://github.com/hpkaushik121/Iso8583studio/releases)
+- Report bugs and request features through this repository's issue tracker.
 
 ---
 

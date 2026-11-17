@@ -22,6 +22,15 @@ class PortMatchTest {
     }
 
     @Test
+    void linuxFallbackPicksTheLowestNumberedPort() {
+        // jSerialComm lists an A910S's ports newest first; the ECR port is ttyACM0.
+        assertEquals("ttyACM0", PortMatch.pickLinuxPort(java.util.List.of("ttyACM2", "ttyACM1", "ttyACM0")));
+        assertEquals("ttyACM10", PortMatch.pickLinuxPort(java.util.List.of("ttyS0", "ttyUSB0", "ttyACM10")));
+        assertEquals("ttyUSB1", PortMatch.pickLinuxPort(java.util.List.of("ttyS0", "ttyUSB3", "ttyUSB1")));
+        assertNull(PortMatch.pickLinuxPort(java.util.List.of("ttyS0", "ttyS1")));
+    }
+
+    @Test
     void linuxAcmAndUsbNamesMatch() {
         assertTrue(PortMatch.isPaxPort("/dev/ttyACM0", null));
         assertTrue(PortMatch.isPaxPort("ttyACM0", "USB-Based Serial Port"));

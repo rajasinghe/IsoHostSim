@@ -24,7 +24,6 @@ import java.net.UnknownHostException;
 import org.json.JSONObject;
 
 /**
- * @author HP PC
  */
 public class CheckStatusRequest extends Utility {
 
@@ -138,7 +137,7 @@ public class CheckStatusRequest extends Utility {
         //fIND PAX COM PORT
         String ComPort = "";
 
-        ComPort = PaxPort.discover();   //gimhan added - shared port owner, port stays open so a cancel can use it
+        ComPort = PaxPort.discover();   // shared port owner, port stays open so a cancel can use it
 
         if (PortMatch.isUsablePortName(ComPort)) {   // ISO8583Studio patch: was ComPort.contains("COM")
         } else {
@@ -151,7 +150,7 @@ public class CheckStatusRequest extends Utility {
 
         OutputStream outputStream;
 
-        SerialPort port = PaxPort.acquire(ComPort);   //gimhan added - shared port owner, port stays open so a cancel can use it
+        SerialPort port = PaxPort.acquire(ComPort);   // shared port owner, port stays open so a cancel can use it
 
         if (port == null) {
 

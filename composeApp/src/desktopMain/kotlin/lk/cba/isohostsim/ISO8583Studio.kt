@@ -1,0 +1,608 @@
+package lk.cba.isohostsim
+
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPlacement
+import androidx.compose.ui.window.WindowState
+import androidx.compose.ui.window.application
+import androidx.compose.ui.window.rememberWindowState
+import cafe.adriel.voyager.navigator.CurrentScreen
+import cafe.adriel.voyager.navigator.Navigator
+import cafe.adriel.voyager.navigator.currentOrThrow
+import lk.cba.isohostsim.domain.service.posSimulatorService.avd.ProcessRegistry
+import lk.cba.isohostsim.analytics.Analytics
+import lk.cba.isohostsim.edition.EnabledTools
+import lk.cba.isohostsim.analytics.DesktopAnalyticsSink
+import lk.cba.isohostsim.analytics.StudioAnalytics
+import lk.cba.isohostsim.data.ExceptionHandler
+import lk.cba.isohostsim.data.model.AnalyticsConsent
+import lk.cba.isohostsim.data.model.AppSettings
+import lk.cba.isohostsim.ui.screens.about.AnalyticsConsentDialog
+import lk.cba.isohostsim.data.ResultDialogInterface
+import lk.cba.isohostsim.data.model.GatewayConfig
+import lk.cba.isohostsim.domain.FileImporter
+import lk.cba.isohostsim.domain.ImportResult
+import lk.cba.isohostsim.domain.utils.ExportResult
+import lk.cba.isohostsim.domain.utils.FileExporter
+import lk.cba.isohostsim.ui.AppTheme
+import lk.cba.isohostsim.ui.screens.components.LocalBackNavigationAvailable
+import lk.cba.isohostsim.ui.ErrorRed
+import lk.cba.isohostsim.ui.Studio.appState
+import lk.cba.isohostsim.ui.SuccessGreen
+import lk.cba.isohostsim.ui.navigation.Destination
+import lk.cba.isohostsim.ui.navigation.stateConfigs.SimulatorType
+import lk.cba.isohostsim.ui.navigation.stateConfigs.apdu.APDUSimulatorConfig
+import lk.cba.isohostsim.ui.navigation.stateConfigs.hsm.HSMSimulatorConfig
+import lk.cba.isohostsim.ui.navigation.stateConfigs.pos.POSSimulatorConfig
+import lk.cba.isohostsim.ui.screens.components.StatusBadge
+import lk.cba.isohostsim.ui.screens.about.AboutDialog
+import lk.cba.isohostsim.ui.screens.apduSimulator.v2.ApduSimulatorV2Screen
+import lk.cba.isohostsim.ui.screens.hostSimulator.HostSimulatorScreen
+import lk.cba.isohostsim.ui.screens.hsmSimulator.HsmSimulatorScreen
+import lk.cba.isohostsim.ui.screens.posTerminal.POSTerminalSimulatorScreen
+import lk.cba.isohostsim.ui.navigation.rememberNavigationController
+import lk.cba.isohostsim.ui.session.GlobalSimulatorTabBar
+import lk.cba.isohostsim.ui.session.SimulatorSessionManager
+import lk.cba.isohostsim.ui.shell.AppSidebar
+import lk.cba.isohostsim.data.model.StudioTool
+import iso8583studio.composeapp.generated.resources.Res
+import iso8583studio.composeapp.generated.resources.app
+import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
+import lk.cba.isohostsim.ui.GlassBackdrop
+import lk.cba.isohostsim.ui.GlassWindowEffect
+import lk.cba.isohostsim.ui.GlossyMenuBar
+import lk.cba.isohostsim.ui.MenuBarItem
+import lk.cba.isohostsim.ui.MenuBarMenu
+import lk.cba.isohostsim.ui.MenuBarSeparator
+import lk.cba.isohostsim.ui.MenuBarSubMenu
+import lk.cba.isohostsim.ui.detectWindowsDarkMode
+import java.awt.Desktop
+import java.awt.desktop.AboutHandler
+import androidx.compose.foundation.isSystemInDarkTheme
+
+enum class DialogType {
+    SUCCESS, ERROR, NONE
+}
+
+class ISO8583Studio {
+
+    companion object {
+        @JvmStatic
+        fun main(args: Array<String>) {
+            // Set system look-and-feel before creating any windows
+            try {
+                javax.swing.UIManager.setLookAndFeel(javax.swing.UIManager.getSystemLookAndFeelClassName())
+            } catch (_: Throwable) { }
+
+            // Reap long-lived child processes on exit. `onCloseRequest = ::exitApplication` does no
+            // cleanup, and an Android emulator started from a POS session outlives its parent by
+            // default — leaving a CPU core and ~2 GB of RAM held after the app is gone.
+            ProcessRegistry.installShutdownHook()
+
+            AppSettings.recordLaunch()
+            // Starts reporting only if consent was previously granted; a no-op otherwise.
+            StudioAnalytics.init()
+            Analytics.sink = DesktopAnalyticsSink
+
+            application {
+
+            Thread.currentThread().uncaughtExceptionHandler = ExceptionHandler()
+            Thread.setDefaultUncaughtExceptionHandler(ExceptionHandler())
+
+            val windowState = remember {
+                // Opens maximised so the whole screen is workspace; the size is what it returns to
+                // when the user restores the window.
+                WindowState(
+                    placement = WindowPlacement.Maximized,
+                    size = DpSize(width = 1400.dp, height = 850.dp),
+                )
+            }
+            var showAboutDialog by remember { mutableStateOf(false) }
+            val isoCoroutine = rememberCoroutineScope()
+
+            // Override macOS application menu "About" to show our custom About dialog
+            LaunchedEffect(Unit) {
+                if (System.getProperty("os.name").lowercase().contains("mac")) {
+                    try {
+                        Desktop.getDesktop().setAboutHandler(AboutHandler { showAboutDialog = true })
+                    } catch (_: Exception) {
+                        // setAboutHandler not supported on this platform
+                    }
+                }
+            }
+
+            // Detect OS dark mode (registry fallback for Windows)
+            val osDarkMode = remember {
+                detectWindowsDarkMode() ?: false
+            }
+
+            AppTheme {
+                val isDark = isSystemInDarkTheme() || osDarkMode
+                Window(
+                    onCloseRequest = ::exitApplication,
+                    title = "POS Testing Platform",
+                    state = windowState,
+                    icon = painterResource(Res.drawable.app),
+                    transparent = false,
+                    undecorated = false,
+                ) {
+                    GlassWindowEffect(
+                        window = window,
+                        backdrop = GlassBackdrop.MICA,
+                        darkMode = isDark,
+                    )
+                    Navigator(screen = Destination.Home) { navigator ->
+                        val navigationController = rememberNavigationController(navigator)
+
+                        // ─── About Dialog ───────────────────────────────
+                        if (showAboutDialog) {
+                            AboutDialog(onCloseRequest = { showAboutDialog = false })
+                        }
+
+                        // ─── Analytics Consent (first run only) ─────────
+                        // Asked once. Nothing has been transmitted at this point: StudioAnalytics.init()
+                        // above is inert while consent is UNSET.
+                        // Never asked in the QA edition, which ships with analytics off.
+                        if (EnabledTools.analyticsEnabled && AppSettings.analyticsConsent == AnalyticsConsent.UNSET) {
+                            AnalyticsConsentDialog(
+                                onAccept = {
+                                    AppSettings.updateAnalyticsConsent(AnalyticsConsent.GRANTED)
+                                    StudioAnalytics.init()
+                                },
+                                onDecline = {
+                                    AppSettings.updateAnalyticsConsent(AnalyticsConsent.DENIED)
+                                }
+                            )
+                        }
+
+                        LaunchedEffect(AppSettings.analyticsConsent) {
+                            if (AppSettings.analyticsConsent.isGranted) StudioAnalytics.appOpen()
+                        }
+
+                        // ─── Error/Success Dialog ───────────────────────
+                        var showErrorDialog by remember {
+                            mutableStateOf<Pair<DialogType, @Composable (() -> Unit)>?>(null)
+                        }
+
+                        appState.value.resultDialogInterface = object : ResultDialogInterface {
+                            override fun onError(item: @Composable (() -> Unit)) {
+                                showErrorDialog = Pair(DialogType.ERROR, item)
+                            }
+                            override fun onSuccess(item: @Composable (() -> Unit)) {
+                                showErrorDialog = Pair(DialogType.SUCCESS, item)
+                            }
+                        }
+
+                        if (showErrorDialog?.first == DialogType.ERROR) {
+                            AlertDialog(
+                                onDismissRequest = { showErrorDialog = null },
+                                confirmButton = {
+                                    Button(
+                                        onClick = { showErrorDialog = null },
+                                        colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.primary)
+                                    ) { Text("OK") }
+                                },
+                                title = {
+                                    StatusBadge(text = "ERROR", color = ErrorRed, modifier = Modifier.padding(bottom = 8.dp))
+                                },
+                                text = showErrorDialog!!.second,
+                                shape = MaterialTheme.shapes.medium,
+                                backgroundColor = MaterialTheme.colors.surface
+                            )
+                        }
+
+                        if (showErrorDialog?.first == DialogType.SUCCESS) {
+                            AlertDialog(
+                                onDismissRequest = { showErrorDialog = null },
+                                confirmButton = {
+                                    Button(
+                                        onClick = { showErrorDialog = null },
+                                        colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.primary)
+                                    ) { Text("OK") }
+                                },
+                                title = {
+                                    StatusBadge(text = "SUCCESS", color = SuccessGreen, modifier = Modifier.padding(bottom = 8.dp))
+                                },
+                                text = showErrorDialog!!.second,
+                                shape = MaterialTheme.shapes.medium,
+                                backgroundColor = MaterialTheme.colors.surface
+                            )
+                        }
+
+                        appState.value.setComposableWindow(window)
+
+                        // ═══════════════════════════════════════════════════
+                        //  CORE CHANGE: Global Tab Bar + Session-Aware Content
+                        // ═══════════════════════════════════════════════════
+                        //
+                        // Architecture:
+                        //   ┌──────────────────────────────────────────┐
+                        //   │  Global Tab Bar (session tabs)           │
+                        //   ├──────────────────────────────────────────┤
+                        //   │                                          │
+                        //   │  Content Area:                           │
+                        //   │    - Main Navigation (Voyager) OR        │
+                        //   │    - Active Simulator Session            │
+                        //   │                                          │
+                        //   └──────────────────────────────────────────┘
+                        //
+                        // Running simulators persist in memory via
+                        // SimulatorSessionManager even when the user
+                        // navigates to tools/calculators/config screens.
+
+                        val activeSessionId by SimulatorSessionManager.activeSessionId
+                        val poppedOutIds = SimulatorSessionManager.poppedOutSessionIds
+
+                        val exportConfiguration: () -> Unit = {
+                            isoCoroutine.launch {
+                                val file = FileExporter().exportFile(
+                                    window = window,
+                                    fileName = "ISO8583Studio",
+                                    fileExtension = "json",
+                                    fileContent = appState.value.export().toByteArray(),
+                                    fileDescription = "Configuration File"
+                                )
+                                when (file) {
+                                    is ExportResult.Success -> {
+                                        appState.value.resultDialogInterface?.onSuccess {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) { Text("Configuration exported successfully!") }
+                                        }
+                                    }
+                                    is ExportResult.Cancelled -> println("Export cancelled")
+                                    is ExportResult.Error -> {
+                                        appState.value.resultDialogInterface?.onError {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center,
+                                            ) { Text((file as ExportResult.Error).message) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        val importConfiguration: () -> Unit = {
+                            isoCoroutine.launch {
+                                val file = FileImporter().importFile(
+                                    window = window,
+                                    fileExtensions = listOf("json"),
+                                    importLogic = { f -> appState.value.import(f) }
+                                )
+                                when (file) {
+                                    is ImportResult.Success -> {
+                                        appState.value.resultDialogInterface?.onSuccess {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) { Text("Configuration imported successfully!") }
+                                        }
+                                    }
+                                    is ImportResult.Cancelled -> println("Import cancelled")
+                                    is ImportResult.Error -> {
+                                        appState.value.resultDialogInterface?.onError {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Center
+                                            ) { Text(file.message) }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Row(modifier = Modifier.fillMaxSize()) {
+                            AppSidebar(
+                                onHome = {
+                                    SimulatorSessionManager.activateMainContent()
+                                    navigationController.navigateTo(Destination.Home)
+                                },
+                                onOpenTool = { SimulatorSessionManager.openTool(it) },
+                                onExportConfig = exportConfiguration,
+                                onImportConfig = importConfiguration,
+                                onSettings = { navigationController.navigateTo(Destination.GlobalSettings) },
+                                onAbout = { showAboutDialog = true },
+                                onExit = { exitApplication() },
+                            )
+                            Column(modifier = Modifier.weight(1f).fillMaxSize()) {
+                                // ── Global Tab Bar ──
+                                GlobalSimulatorTabBar()
+
+                                // ── Content Area ──
+                                Box(modifier = Modifier.fillMaxSize()) {
+                                    // Layer 1: Main Voyager navigation (always composed, visibility toggled)
+                                    CurrentScreen()
+
+                                    // Layer 2: Inline session content (skip popped-out sessions)
+                                    SimulatorSessionManager.sessions.forEach { session ->
+                                        if (session.id !in poppedOutIds) {
+                                            key(session.id) {
+                                                val isVisible = session.id == activeSessionId
+                                                Box(
+                                                    modifier = if (isVisible) Modifier.fillMaxSize()
+                                                               else Modifier.requiredSize(0.dp)
+                                                ) {
+                                                    SessionContent(
+                                                        session = session,
+                                                        window = window,
+                                                        onBack = {
+                                                            val configDest = when (session.simulatorType) {
+                                                                SimulatorType.HOST        -> Destination.HostSimulatorConfig
+                                                                SimulatorType.HSM         -> Destination.HSMSimulatorConfig
+                                                                SimulatorType.POS         -> Destination.POSTerminalConfig
+                                                                SimulatorType.APDU        -> Destination.ApduSimulatorConfig
+                                                                SimulatorType.ECR         -> Destination.EcrSimulatorConfigScreen
+                                                                SimulatorType.ATM         -> Destination.ATMSimulatorConfig
+                                                                SimulatorType.HSM_COMMAND -> Destination.HsmCommandConfig
+                                                                SimulatorType.SWITCH      -> Destination.PaymentSwitchConfig
+                                                                SimulatorType.ACQUIRER    -> Destination.AcquirerGatewayConfig
+                                                                SimulatorType.ISSUER      -> Destination.IssuerSystemConfig
+                                                                else -> Destination.Home
+                                                            }
+                                                            navigationController.navigateTo(configDest)
+                                                            SimulatorSessionManager.activateMainContent()
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }  // content column
+                        }  // sidebar row
+
+                        // ── Pop-out Windows ──
+                        // Each pop-out Window has its own composition, so we
+                        // wrap content in a Navigator to provide LocalNavigator
+                        // (required by HOST sessions for NavigationController).
+                        SimulatorSessionManager.sessions
+                            .filter { it.id in poppedOutIds }
+                            .forEach { session ->
+                                key("popout-${session.id}") {
+                                    val popoutWindowState = rememberWindowState(
+                                        size = DpSize(width = 1400.dp, height = 750.dp)
+                                    )
+                                    Window(
+                                        onCloseRequest = {
+                                            SimulatorSessionManager.dockSession(session.id)
+                                        },
+                                        title = session.displayName,
+                                        state = popoutWindowState,
+                                        icon = painterResource(Res.drawable.app)
+                                    ) {
+                                        GlassWindowEffect(
+                                            window = window,
+                                            backdrop = GlassBackdrop.MICA,
+                                            darkMode = isDark,
+                                        )
+                                        AppTheme {
+                                            Navigator(screen = Destination.Home) {
+                                                Column(modifier = Modifier.fillMaxSize()) {
+                                                    PopOutWindowTopBar(
+                                                        session = session,
+                                                        onDock = { SimulatorSessionManager.dockSession(session.id) },
+                                                        onClose = { SimulatorSessionManager.closeSession(session.id) }
+                                                    )
+                                                    Box(modifier = Modifier.fillMaxSize()) {
+                                                        SessionContent(
+                                                            session = session,
+                                                            window = window,
+                                                            onBack = {
+                                                                SimulatorSessionManager.dockSession(session.id)
+                                                            }
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+    }
+}
+
+/**
+ * Renders the appropriate simulator screen for a given session.
+ * Each session type gets its own composable with the service instance
+ * from the session, ensuring state persistence across tab switches.
+ */
+@Composable
+private fun SessionContent(
+    session: lk.cba.isohostsim.ui.session.SimulatorSession,
+    window: java.awt.Window,
+    onBack: () -> Unit
+) {
+    when (session.simulatorType) {
+        SimulatorType.HSM -> {
+            val config = session.config as HSMSimulatorConfig
+            HsmSimulatorScreen(
+                config = config,
+                onBack = onBack,
+                service = session.hsmService,  // reuse session-owned service; closeSession() stops it
+                onSaveConfig = { updated -> appState.value.updateConfig(updated) }
+            )
+        }
+
+        SimulatorType.HOST -> {
+            val config = session.config as GatewayConfig
+            val navigationController = lk.cba.isohostsim.ui.navigation.rememberNavigationController(
+                cafe.adriel.voyager.navigator.LocalNavigator.currentOrThrow
+            )
+            HostSimulatorScreen(
+                window = window as androidx.compose.ui.awt.ComposeWindow,
+                config = config,
+                navigationController = navigationController,
+                onBack = onBack,
+                onError = appState.value.resultDialogInterface!!,
+                onSaveClick = { appState.value.save() }
+            )
+        }
+
+        SimulatorType.POS -> {
+            val config = session.config as POSSimulatorConfig
+            POSTerminalSimulatorScreen(
+                window = window as androidx.compose.ui.awt.ComposeWindow,
+                config = config,
+                onBack = onBack,
+                onSaveClick = { appState.value.save() },
+                service = session.posService,
+            )
+        }
+
+        SimulatorType.APDU -> {
+            val config = session.config as APDUSimulatorConfig
+            ApduSimulatorV2Screen(
+                config = config,
+                onBack = onBack,
+                onSaveClick = { appState.value.save() },
+            )
+        }
+
+        SimulatorType.HSM_COMMAND -> {
+            val config = session.config as lk.cba.isohostsim.ui.navigation.stateConfigs.hsmCommand.HsmCommandConfig
+            lk.cba.isohostsim.ui.screens.hsmCommand.HsmCommandScreen(
+                config = config,
+                onBack = onBack,
+                service = session.hsmCommandService,
+                onSaveConfig = { updatedConfig ->
+                    appState.value.updateConfig(updatedConfig)
+                    appState.value.save()
+                }
+            )
+        }
+
+        SimulatorType.ECR -> {
+            val service = session.ecrService
+            if (service != null) {
+                lk.cba.isohostsim.ui.screens.ecrSimulator.EcrSimulatorScreen(
+                    service = service,
+                    onBack = onBack,
+                    onSaveConfig = { updatedConfig ->
+                        appState.value.updateConfig(updatedConfig)
+                        appState.value.save()
+                    },
+                )
+            }
+        }
+
+        SimulatorType.TOOL -> {
+            val screen = session.toolScreen
+            if (screen != null) {
+                Navigator(screen = screen) { nav ->
+                    // Voyager 1.1.0-beta02 uses `providesDefault` for LocalNavigatorStateHolder,
+                    // so all nested Navigators share the root's SaveableStateHolder. CurrentScreen()
+                    // always registers key "${screen.key}:currentScreen" in that shared holder.
+                    // If this nested navigator and the root both show the same screen (e.g.
+                    // Destination.Home), the duplicate key crashes the app.
+                    //
+                    // Fix: call saveableState with a session-unique suffix instead of the fixed
+                    // "currentScreen" used by CurrentScreen(). This keeps all lifecycle/state
+                    // management intact while guaranteeing key uniqueness in the shared holder.
+                    // A tool tab starts at the bottom of its own stack: until the tool pushes a
+                    // screen of its own, the back arrow has nowhere to go, so it is not shown.
+                    CompositionLocalProvider(LocalBackNavigationAvailable provides nav.canPop) {
+                        nav.saveableState("session_${session.id}") {
+                            nav.lastItem.Content()
+                        }
+                    }
+                }
+            } else {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Tool unavailable")
+                }
+            }
+        }
+
+        else -> {
+            // Placeholder for future simulator types
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("${session.simulatorType.displayName} session is running")
+            }
+        }
+    }
+}
+
+/**
+ * Compact top bar for pop-out windows with session info, dock-back, and close actions.
+ */
+@Composable
+private fun PopOutWindowTopBar(
+    session: lk.cba.isohostsim.ui.session.SimulatorSession,
+    onDock: () -> Unit,
+    onClose: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colors.surface,
+        elevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(36.dp)
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = session.displayName,
+                    style = MaterialTheme.typography.subtitle2,
+                    color = MaterialTheme.colors.onSurface
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                IconButton(onClick = onDock, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.PictureInPicture,
+                        contentDescription = "Dock back to main window",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+                IconButton(onClick = onClose, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close session",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** A menu entry that opens [tool], shown only when the tool is in [EnabledTools.ENABLED]. */
+@Composable
+private fun ToolMenuItem(label: String, tool: StudioTool) {
+    if (EnabledTools.isEnabled(tool)) {
+        MenuBarItem(label) { SimulatorSessionManager.openTool(tool) }
+    }
+}

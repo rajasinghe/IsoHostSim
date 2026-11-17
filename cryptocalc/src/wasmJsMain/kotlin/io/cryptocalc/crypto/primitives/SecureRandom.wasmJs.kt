@@ -1,6 +1,6 @@
 package io.cryptocalc.crypto.primitives
 
-import ai.cortex.core.hexToBytes
+import lk.cba.isocore.hexToBytes
 
 /**
  * Kotlin/Wasm JS interop only passes primitives and strings across the boundary, so the

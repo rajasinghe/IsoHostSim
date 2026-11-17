@@ -1,9 +1,9 @@
 package io.cryptocalc.crypto.engines.encryption
 
-import ai.cortex.core.IsoUtil
-import ai.cortex.core.IsoUtil.hexToBytes
-import ai.cortex.core.latin1ToString
-import ai.cortex.core.toLatin1Bytes
+import lk.cba.isocore.IsoUtil
+import lk.cba.isocore.IsoUtil.hexToBytes
+import lk.cba.isocore.latin1ToString
+import lk.cba.isocore.toLatin1Bytes
 import io.cryptocalc.crypto.primitives.Digests
 import io.cryptocalc.crypto.primitives.secureRandomBytes
 import kotlin.time.TimeSource
@@ -24,7 +24,6 @@ import kotlin.time.TimeSource
  * - Comprehensive validation and error handling
  * - Performance optimizations for enterprise environments
  *
- * @author Crypto SDK Team
  * @version 1.0.0
  */
 internal object SHA1CalculatorEngine {
