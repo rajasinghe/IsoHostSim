@@ -2,7 +2,7 @@
     "hostConfigs": [
         {
             "id": "446d41ce-e854-43eb-b76e-b94b565ea7ac",
-            "name": "gimhan-sim",
+            "name": "host-sim",
             "serverPort": 8000,
             "serverAddress": "10.42.0.1",
             "privateKey": [],
