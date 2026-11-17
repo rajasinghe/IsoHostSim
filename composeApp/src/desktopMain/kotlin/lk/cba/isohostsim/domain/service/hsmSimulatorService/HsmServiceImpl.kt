@@ -1,0 +1,813 @@
+package lk.cba.isohostsim.domain.service.hsmSimulatorService
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import lk.cba.isohostsim.data.HsmClient
+import lk.cba.isohostsim.data.ResultDialogInterface
+import lk.cba.isohostsim.data.SimulatorConfig
+import lk.cba.isohostsim.data.model.AppSettings
+import lk.cba.isohostsim.domain.service.hostSimulatorService.Simulator
+import lk.cba.isohostsim.hsm.HsmClientListener
+import lk.cba.isohostsim.hsm.HsmConfig
+import lk.cba.isohostsim.hsm.HsmSimulator
+import lk.cba.isohostsim.hsm.payshield10k.HsmLogsListener
+import lk.cba.isohostsim.hsm.payshield10k.PayShield10K
+import lk.cba.isohostsim.hsm.payshield10k.PayShield10KFeatures
+import lk.cba.isohostsim.hsm.payshield10k.data.AuditEntry
+import lk.cba.isohostsim.hsm.payshield10k.data.AuthActivity
+import lk.cba.isohostsim.hsm.payshield10k.data.HsmCommandResult
+import lk.cba.isohostsim.logging.LogEntry
+import lk.cba.isohostsim.logging.LogHistory
+import lk.cba.isohostsim.logging.addBounded
+import lk.cba.isohostsim.logging.LogType
+import lk.cba.isohostsim.ui.navigation.stateConfigs.hsm.HSMSimulatorConfig
+import lk.cba.isohostsim.ui.navigation.stateConfigs.hsm.HSMVendor
+import lk.cba.isohostsim.ui.screens.hostSimulator.createLogEntry
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import java.io.File
+import java.net.InetAddress
+import java.net.InetSocketAddress
+import java.net.ServerSocket
+import java.net.Socket
+import java.nio.charset.Charset
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.coroutines.coroutineContext
+import lk.cba.isohostsim.ui.screens.hsmCommand.ThalesErrorCodes
+import lk.cba.isohostsim.domain.service.simulation.ConnectionDecision
+import lk.cba.isohostsim.domain.service.simulation.ResponseDecision
+import lk.cba.isohostsim.domain.service.simulation.SimulationBehaviorEngine
+import lk.cba.isohostsim.domain.service.simulation.SimulationSettings
+
+// Main HSM Service Implementation
+class HsmServiceImpl(
+    override var configuration: HSMSimulatorConfig
+) : Simulator, HsmClientListener, HsmLogsListener {
+    private var serverSocket: ServerSocket? = null
+    private var activeHsm: HsmSimulator? = null
+    private var selectedHsmType: HSMVendor = HSMVendor.THALES
+
+    private var _hsmState = MutableStateFlow(HsmState())
+    val hsmState = _hsmState.asStateFlow()
+
+    private var errorCallbacks: (() -> @Composable () -> Unit)? = null
+    var receivedFromSource: (String?) -> Unit = {}
+    var receivedFromSourceFormatted: (String?) -> Unit = {}
+    var sentToSource: (String?) -> Unit = {}
+    var sentToSourceFormatted: (String?) -> Unit = {}
+    var holdMessage: Boolean = false
+    var sendHoldMessageCallback: (suspend () -> Unit)? = null
+
+    /**
+     * Live simulation impairments, seeded from the config this service was constructed with.
+     *
+     * The running service owns a config *snapshot* (the session captures it at launch), so later
+     * `updateConfig` calls are never seen here. The HSM Handler settings dialog swaps this value
+     * instead, and the socket path re-reads it per request — which is what makes a change take
+     * effect on live traffic without a restart.
+     */
+    val simulation = MutableStateFlow(SimulationSettings.fromHsmAdvanced(configuration.advanced))
+
+    private val simulationEngine = SimulationBehaviorEngine(
+        settingsProvider = { simulation.value },
+        errorCodeSelector = HsmErrorInjection::errorCodeFor,
+    )
+
+    private var startTime: LocalDateTime? = null
+    private var stopTime: LocalDateTime? = null
+    private var serverJob: Job? = null
+    init {
+        CoroutineScope(Dispatchers.IO).launch {
+            initialize(configuration.vendor,configuration.hsmConfig)
+        }
+    }
+
+    /**
+     * Initialize HSM based on selected type
+     */
+    suspend fun initialize(hsmType: HSMVendor, config: HsmConfig = HsmConfig()) {
+        selectedHsmType = hsmType
+
+        activeHsm = when (hsmType) {
+            HSMVendor.THALES -> {
+                PayShield10K( config,this).also { it.initialize() }
+            }
+            // Add other HSM types here
+            else -> throw UnsupportedOperationException("HSM type $hsmType not yet implemented")
+        }
+    }
+    /**
+     * Get current HSM instance
+     */
+    fun getHsm(): HsmSimulator? = activeHsm
+
+    /**
+     * Get PayShield 10K specific instance (for advanced features)
+     */
+    fun getPayShield10K(): PayShield10K? {
+        return activeHsm as? PayShield10K
+    }
+
+
+    override fun getConnectionCount(): Int {
+        return _hsmState.value.connectionCount.get()
+    }
+
+
+    override fun getBytesIncoming(): Int {
+        return 0
+    }
+
+    override fun getBytesOutgoing(): Int {
+        return 0
+    }
+
+    override fun writeLog(log: LogEntry) {
+        if (!AppSettings.enableGlobalLogging) {
+            return
+        }
+        // Same complete-record write as the host simulator; see HostSimulator.writeLog.
+        LogHistory.of(configuration.logFileName, configuration.maxLogSizeInMB)?.append(log)
+        _hsmState.value = _hsmState.value.copy(
+            rawRequest = _hsmState.value.rawRequest.apply {
+                addBounded(log)
+            }
+        )
+    }
+
+    override fun showError(item: @Composable (() -> Unit)) {
+
+    }
+
+    override fun showSuccess(item: @Composable (() -> Unit)) {
+
+    }
+
+    override fun showWarning(item: @Composable (() -> Unit)) {
+
+    }
+
+    override fun setShowErrorListener(resultDialogInterface: ResultDialogInterface) {
+
+    }
+
+    override fun <T : SimulatorConfig> setConfiguration(config: T) {
+        this.configuration = config as HSMSimulatorConfig
+    }
+
+
+    private var serverScope: CoroutineScope? = null
+    /**
+     * Start the HSM service
+     */
+    @OptIn(ExperimentalAtomicApi::class, ExperimentalStdlibApi::class)
+    override suspend fun start() = withContext(Dispatchers.IO) {
+        if (_hsmState.value.started) {
+            return@withContext
+        }
+
+        // Initialize connections list
+        _hsmState.value.activeClients.clear()
+
+        // Initialize server socket for TCP/IP or REST connections
+        serverSocket = if (configuration.serverAddress.isNotBlank()) {
+            ServerSocket(
+                configuration.serverPort,
+                50,
+                InetAddress.getByName(configuration.serverAddress)
+            )
+        } else {
+            ServerSocket(configuration.serverPort)
+        }
+
+        // Log startup
+        writeLog(
+            createLogEntry(
+                type = LogType.SOCKET,
+                message = "===============GATEWAY STARTED===============",
+                details = configuration.toString()
+            )
+        )
+
+        // Set start time
+        startTime = LocalDateTime.now()
+
+        // t=0 for the simulation ramp is "this test began", so it resets on every start.
+        simulationEngine.onSimulatorStarted()
+
+        // Start server thread based on connection type
+        _hsmState.value = _hsmState.value.copy(started = true)
+
+        // ── FIX: Use a dedicated scope so cancel() propagates to ALL children ──
+        serverScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+        serverJob = serverScope!!.launch {
+            doListener()
+        }
+    }
+
+    /**
+     * Main listener method that handles incoming connections
+     */
+    @OptIn(ExperimentalAtomicApi::class)
+    private suspend fun doListener() {
+        while (_hsmState.value.started && coroutineContext.isActive) {  // ← FIX: was NonCancellable.isActive
+            try {
+                processTcpIp()
+            } catch (e: Exception) {
+                if (!_hsmState.value.started || !coroutineContext.isActive) {
+                    // Server is shutting down — don't restart
+                    break
+                }
+                // Handle errors
+                writeLog(createLogEntry(type = LogType.ERROR, message = "FATAL ERROR ${e}"))
+                writeLog(
+                    createLogEntry(
+                        type = LogType.DEBUG,
+                        message = " THE GATEWAY WILL RESTART IN ${configuration.waitToRestart} seconds "
+                    )
+                )
+                // Wait before restart
+                val waitUntil =
+                    LocalDateTime.now().plusSeconds(configuration.waitToRestart.toLong())
+                while (LocalDateTime.now().isBefore(waitUntil) && _hsmState.value.started && coroutineContext.isActive) {
+                    delay(500)
+                }
+            }
+        }
+    }
+
+
+    /**
+     * Process TCP/IP connections
+     */
+    @OptIn(ExperimentalAtomicApi::class)
+    private suspend fun processTcpIp() {
+        while (_hsmState.value.started && coroutineContext.isActive) {  // ← FIX: was NonCancellable.isActive
+            try {
+                // Wait until we have space for a new connection
+                while (_hsmState.value.started && _hsmState.value.activeClients.size >= configuration.maxConcurrentConnection && coroutineContext.isActive) {
+                    delay(30)
+                }
+
+                // ── FIX: Check again after the wait — stop() may have fired ──
+                if (!_hsmState.value.started || !coroutineContext.isActive) break
+
+                // Accept a new client connection
+                val client = createClient()
+                val socket = withContext(Dispatchers.IO) {
+                    serverSocket?.accept()
+                } ?: continue
+
+                // Simulated connection-level chaos runs before the client is registered, so a
+                // refused connection never reaches the counter or the active-client list.
+                val connectionDecision = simulationEngine.onConnectionAccepted()
+                if (connectionDecision is ConnectionDecision.Refuse) {
+                    writeLog(
+                        createLogEntry(
+                            type = LogType.CONNECTION,
+                            message = "SIMULATION — refused connection (${connectionDecision.reason})",
+                        )
+                    )
+                    try { socket.close() } catch (_: Exception) { }
+                    continue
+                }
+
+                client.incomingConnection = socket
+
+                // Increment connection counter
+                _hsmState.value = _hsmState.value.copy(connectionCount = _hsmState.value.connectionCount.apply { incrementAndGet() })
+
+                // Get client IP address
+                val remoteEndpoint = socket.remoteSocketAddress as InetSocketAddress
+                val remoteAddress = remoteEndpoint.address.hostAddress
+                val remotePort = remoteEndpoint.port
+
+                client.remoteIPAddress = "$remoteAddress : $remotePort"
+
+                writeLog(
+                    createLogEntry(
+                        type = LogType.CONNECTION,
+                        message = "==========A REMOTE CLIENT CONNECTED FROM IP = ${client.remoteIPAddress}=========="
+                    ).apply {
+                        source = client.clientID
+                    }
+
+                )
+                // Add client to active list
+                _hsmState.value = _hsmState.value.copy( activeClients = _hsmState.value.activeClients.apply {
+                    add(client)
+                })
+                // Start processing
+                client.processGateway()
+
+
+            } catch (e: Exception) {
+                if (_hsmState.value.started && coroutineContext.isActive) {
+                    writeLog(createLogEntry(type = LogType.ERROR, message = "GATEWAY ERROR $e"))
+
+                    // Call error callbacks
+                    errorCallbacks?.invoke()
+
+                    delay(3000)
+                }
+            }
+        }
+    }
+    /**
+     * Create a new client
+     */
+    private fun createClient(): HsmClient {
+        val client = HsmClient(this)
+        client.hsmClientListener = this
+        client.tcpLengthHeaderEnabled = configuration.hsmConfig.tcpLengthHeaderEnabled
+        return client
+    }
+
+
+    @OptIn(ExperimentalAtomicApi::class)
+    override suspend fun stop() = withContext(Dispatchers.IO) {
+        if (!_hsmState.value.started) {
+            return@withContext
+        }
+
+        // ── Step 1: Signal all loops to exit ──
+        _hsmState.value = _hsmState.value.copy(started = false)
+        stopTime = LocalDateTime.now()
+
+        // ── Step 2: Close server socket ──
+        // This unblocks any pending accept() call, causing it to throw SocketException
+        try {
+            serverSocket?.close()
+        } catch (_: Exception) { }
+        serverSocket = null
+
+        // ── Step 3: Cancel the entire server scope (kills doListener + processTcpIp) ──
+        serverScope?.cancel()
+        serverScope = null
+        serverJob = null
+
+        // ── Step 4: FIX — Forcefully close ALL active client connections ──
+        // Take a snapshot to avoid ConcurrentModificationException, then close each.
+        // Closing the socket causes the client's blocking read() to throw,
+        // which triggers its finally block → onDisconnected → removal from list.
+        val clientsSnapshot = _hsmState.value.activeClients.toList()
+        for (client in clientsSnapshot) {
+            try {
+                client.close()
+            } catch (_: Exception) { }
+        }
+        _hsmState.value.activeClients.clear()
+
+        // ── Step 5: Log shutdown ──
+        writeLog(
+            createLogEntry(
+                type = LogType.SOCKET,
+                message = "===============GATEWAY STOPPED==============="
+            )
+        )
+    }
+
+    @OptIn(ExperimentalAtomicApi::class)
+    override fun isStarted(): Boolean {
+        return _hsmState.value.started
+    }
+
+    /**
+     * Execute an HSM command directly from the GUI (Host Commands tab or Secure Commands tab).
+     * Logs both the outbound command and the inbound response to the Logs panel and log file,
+     * and fires the handler-tab callbacks so the live request/response view also updates.
+     *
+     * @param rawCommand  Full wire-format command string (e.g. "0000CA…")
+     * @param source      Label shown in the log (e.g. "HOST-CMD" or "SECURE-CMD")
+     */
+    suspend fun executeSecureCommand(
+        rawCommand: String,
+        source: String = "GUI-CONSOLE"
+    ): String {
+        val cmdCode = rawCommand.drop(4).take(2).ifBlank { "??" }
+
+        // Log the outbound command (request)
+        writeLog(
+            createLogEntry(
+                type    = LogType.HSM,
+                message = "► [$source] CMD $cmdCode  →  ${rawCommand}"
+            ).also { it.source = source }
+        )
+        receivedFromSource(rawCommand)
+
+        val response = activeHsm?.getProcessor()?.processCommand(rawCommand)
+            ?: "ERROR: No active HSM"
+
+        // Derive error-code from wire response (bytes 7-8 after the 4-char header + 2-char resp-code)
+        val errCode  = response.drop(6).take(2)
+        val logType  = if (errCode == "00") LogType.HSM else LogType.ERROR
+
+        // Log the inbound response
+        writeLog(
+            createLogEntry(
+                type    = logType,
+                message = "◄ [$source] RSP $cmdCode  ←  $response"
+            ).also { it.source = source }
+        )
+        sentToSource(response)
+
+        return response
+    }
+
+    // ── Key Component Generation (direct — bypasses wire protocol) ───────────
+
+    /**
+     * Generates one key component directly, returning structured data.
+     * Returns a map with: clearKey, encryptedKey, kcv — or null on failure.
+     */
+    suspend fun generateKeyComponent(
+        keyTypeCode: String = "001",
+        scheme: String = "U"
+    ): Map<String, String>? {
+        writeLog(
+            createLogEntry(
+                type    = LogType.HSM,
+                message = "► [SECURE-CMD] GC  KeyType=$keyTypeCode  Scheme=$scheme"
+            ).also { it.source = "SECURE-CMD" }
+        )
+        val ps = getPayShield10K() ?: return null
+        val result = when (val r = ps.generateKeyComponentDirect(keyTypeCode, scheme)) {
+            is HsmCommandResult.Success -> r.data.mapValues { it.value.toString() }
+            else -> null
+        }
+        writeLog(
+            createLogEntry(
+                type    = if (result != null) LogType.HSM else LogType.ERROR,
+                message = if (result != null)
+                    "◄ [SECURE-CMD] GC  KCV=${result["kcv"]}  EncKey=${result["encryptedKey"]?.take(16)}…"
+                else
+                    "◄ [SECURE-CMD] GC  FAILED"
+            ).also { it.source = "SECURE-CMD" }
+        )
+        return result
+    }
+
+    /**
+     * XORs a list of hex-encoded keys of identical length and returns the result as uppercase hex.
+     */
+    fun xorHexKeys(keys: List<String>): String {
+        if (keys.isEmpty()) return ""
+        val byteArrays = keys.map { hex ->
+            hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        }
+        val result = byteArrays[0].copyOf()
+        for (i in 1 until byteArrays.size) {
+            val b = byteArrays[i]
+            for (j in result.indices) {
+                result[j] = (result[j].toInt() xor b[j].toInt()).toByte()
+            }
+        }
+        return result.joinToString("") { "%02X".format(it) }
+    }
+
+    /** Calculates the KCV (3-byte encrypt-8-zeros) for a clear key supplied as hex. */
+    fun computeKeyKcv(keyHex: String): String =
+        getPayShield10K()?.calculateKcv(keyHex) ?: "??????"
+
+    /**
+     * Forms a working key by XORing [componentHexList] directly via the command processor.
+     * Returns a map with clearKey, encryptedKey, kcv — or null on failure.
+     * Used by the Secure Command GUI (plain key is visible here).
+     */
+    suspend fun formKeyFromComponents(
+        keyTypeCode: String = "001",
+        scheme: String = "U",
+        componentHexList: List<String>
+    ): Map<String, String>? {
+        writeLog(
+            createLogEntry(
+                type    = LogType.HSM,
+                message = "► [SECURE-CMD] FK  KeyType=$keyTypeCode  Scheme=$scheme  Components=${componentHexList.size}"
+            ).also { it.source = "SECURE-CMD" }
+        )
+        val ps = getPayShield10K() ?: return null
+        val result = when (val r = ps.formKeyFromComponentsDirect(keyTypeCode, scheme, componentHexList)) {
+            is HsmCommandResult.Success -> r.data.mapValues { it.value.toString() }
+            is HsmCommandResult.Error   -> mapOf("error" to "${r.errorCode}: ${r.message}")
+        }
+        val isError = result.containsKey("error")
+        writeLog(
+            createLogEntry(
+                type    = if (isError) LogType.ERROR else LogType.HSM,
+                message = if (isError)
+                    "◄ [SECURE-CMD] FK  FAILED: ${result["error"]}"
+                else
+                    "◄ [SECURE-CMD] FK  KCV=${result["kcv"]}  EncKey=${result["encryptedKey"]?.take(16)}…"
+            ).also { it.source = "SECURE-CMD" }
+        )
+        return result
+    }
+
+    /**
+     * Decrypts a key encrypted under the LMK to obtain the clear (plain) key.
+     * Used by the Secure Command GUI — the plain key is intentionally visible
+     * because this simulates physical console access.
+     *
+     * @param encryptedKeyHex  The key as stored (hex, with optional U/X/T scheme prefix)
+     * @param keyTypeCode      Key type code (e.g. "001" = ZPK, "002" = TPK)
+     * @return Map with clearKey, encryptedKey, kcv, keyType info — or an error entry
+     */
+    suspend fun decryptKeyUnderLmk(
+        encryptedKeyHex: String,
+        keyTypeCode: String
+    ): Map<String, String>? {
+        writeLog(
+            createLogEntry(
+                type    = LogType.HSM,
+                message = "► [SECURE-CMD] DECRYPT-LMK  KeyType=$keyTypeCode  Key=${encryptedKeyHex.take(16)}…"
+            ).also { it.source = "SECURE-CMD" }
+        )
+        val ps = getPayShield10K() ?: return null
+        val result = when (val r = ps.decryptKeyUnderLmkDirect(encryptedKeyHex, keyTypeCode)) {
+            is HsmCommandResult.Success -> r.data.mapValues { it.value.toString() }
+            is HsmCommandResult.Error   -> mapOf("error" to "${r.errorCode}: ${r.message}")
+        }
+        val isError = result.containsKey("error")
+        writeLog(
+            createLogEntry(
+                type    = if (isError) LogType.ERROR else LogType.HSM,
+                message = if (isError)
+                    "◄ [SECURE-CMD] DECRYPT-LMK  FAILED: ${result["error"]}"
+                else
+                    "◄ [SECURE-CMD] DECRYPT-LMK  KCV=${result["kcv"]}  ClearKey=${result["clearKey"]?.take(16)}…"
+            ).also { it.source = "SECURE-CMD" }
+        )
+        return result
+    }
+
+    // ── Console Authorization ────────────────────────────────────────────────
+
+    private fun payShieldFeatures(): PayShield10KFeatures? =
+        (getPayShield10K()?.getFeatures()) as? PayShield10KFeatures
+
+    private fun lmkId(): String =
+        getPayShield10K()?.config?.lmkId ?: "00"
+
+    /**
+     * Simulates custodian card insertion — grants all console authorizations.
+     *
+     * @param durationMs   How long the authorization lasts (default 8 hours)
+     * @param officerNames Simulated officer identifiers recorded in the audit log
+     */
+    fun authorizeConsole(
+        activities: List<AuthActivity> = AuthActivity.values().toList(),
+        durationMs: Long = 8L * 60 * 60 * 1000,
+        officerNames: List<String> = listOf("SIM-OFFICER-1")
+    ) {
+        payShieldFeatures()?.authorizeActivities(lmkId(), activities, durationMs, officerNames)
+    }
+
+    /** Revoke all or specific console authorizations immediately. */
+    fun revokeConsole(activities: List<AuthActivity> = AuthActivity.values().toList()) {
+        payShieldFeatures()?.revokeAuthorizations(lmkId(), activities)
+    }
+
+    /** Returns true if the given activity is currently authorized. */
+    fun isConsoleAuthorized(activity: AuthActivity): Boolean =
+        payShieldFeatures()?.isAuthorized(lmkId(), activity) ?: false
+
+    /**
+     * Returns the expiry epoch-ms for the earliest-expiring authorization among [activities],
+     * or null if none are active.
+     */
+    fun consoleAuthExpiry(
+        activities: List<AuthActivity> = AuthActivity.values().toList()
+    ): Long? = payShieldFeatures()?.getAuthorizationExpiry(lmkId(), activities)
+
+    // ── LMK Slot Management (Key Management Tab) ─────────────────────────
+
+    /**
+     * Generate a random LMK and load it into the specified slot.
+     * @return result map with lmkId, checkValue, scheme, pairCount — or error key
+     */
+    fun generateLmkForSlot(
+        slotId: String,
+        scheme: String = "VARIANT",
+        isDefault: Boolean = false,
+        algorithm: String = "TDES_2KEY"
+    ): Map<String, String> {
+        val features = payShieldFeatures()
+            ?: return mapOf("error" to "HSM not initialized")
+        return when (val r = features.generateRandomLmkForSlot(slotId, scheme, isDefault, algorithm)) {
+            is HsmCommandResult.Success -> r.data.mapValues { it.value.toString() }
+            is HsmCommandResult.Error   -> mapOf("error" to "${r.errorCode}: ${r.message}")
+        }
+    }
+
+    /**
+     * Delete an LMK from the specified slot.
+     */
+    fun deleteLmkSlot(slotId: String): Map<String, String> {
+        val features = payShieldFeatures()
+            ?: return mapOf("error" to "HSM not initialized")
+        return when (val r = features.deleteLmkFromSlot(slotId)) {
+            is HsmCommandResult.Success -> r.data.mapValues { it.value.toString() }
+            is HsmCommandResult.Error   -> mapOf("error" to "${r.errorCode}: ${r.message}")
+        }
+    }
+
+    /**
+     * Regenerate: delete existing slot then generate a new random LMK.
+     */
+    fun regenerateLmkForSlot(
+        slotId: String,
+        scheme: String = "VARIANT",
+        algorithm: String = "TDES_2KEY"
+    ): Map<String, String> {
+        val features = payShieldFeatures()
+            ?: return mapOf("error" to "HSM not initialized")
+        // Check if this was the default slot
+        val wasDefault = features.getSlotManager().lmkLiveSlots[slotId]?.isDefault == true
+        features.deleteLmkFromSlot(slotId)
+        return when (val r = features.generateRandomLmkForSlot(slotId, scheme, wasDefault, algorithm)) {
+            is HsmCommandResult.Success -> r.data.mapValues { it.value.toString() }
+            is HsmCommandResult.Error   -> mapOf("error" to "${r.errorCode}: ${r.message}")
+        }
+    }
+
+    fun updateLmkAlgorithm(slotId: String, algorithm: String): Map<String, String> {
+        val features = payShieldFeatures()
+            ?: return mapOf("error" to "HSM not initialized")
+        return when (val r = features.getSlotManager().updateLmkAlgorithm(slotId, algorithm)) {
+            is HsmCommandResult.Success -> {
+                // Persist updated LmkSet to storage
+                features.getSlotManager().lmkLiveSlots[slotId]?.lmkSet?.let { features.lmkStorage.addLmk(it) }
+                r.data.mapValues { it.value.toString() }
+            }
+            is HsmCommandResult.Error   -> mapOf("error" to "${r.errorCode}: ${r.message}")
+        }
+    }
+
+    fun updateLmkScheme(slotId: String, scheme: String): Map<String, String> {
+        val features = payShieldFeatures()
+            ?: return mapOf("error" to "HSM not initialized")
+        return when (val r = features.getSlotManager().updateLmkScheme(slotId, scheme)) {
+            is HsmCommandResult.Success -> {
+                features.getSlotManager().lmkLiveSlots[slotId]?.lmkSet?.let { features.lmkStorage.addLmk(it) }
+                r.data.mapValues { it.value.toString() }
+            }
+            is HsmCommandResult.Error   -> mapOf("error" to "${r.errorCode}: ${r.message}")
+        }
+    }
+
+    fun clearLogs() {
+        _hsmState.value = _hsmState.value.copy(rawRequest = mutableStateListOf(),
+            formattedRequest = mutableStateListOf(),
+            rawResponse = mutableStateListOf(),
+            formattedResponse = mutableStateListOf()
+        )
+    }
+
+    override fun onDisconnected(hsmClient: HsmClient?) {
+        writeLog(
+            createLogEntry(
+                type = LogType.CONNECTION,
+                message = "CONNECTION MAY BE CLOSED BY REMOTE COMPUTER/TERMINAL = ${hsmClient?.remoteIPAddress}"
+            )
+        )
+        _hsmState.value = _hsmState.value.copy(activeClients = _hsmState.value.activeClients.apply {
+            remove( this.first { it.clientID ==  hsmClient?.clientID})
+        },
+            connectionCount = _hsmState.value.connectionCount.apply { decrementAndGet() })
+    }
+
+    override fun onSentToSource(data: String?) {
+        val raw = data ?: "NULL"
+        // Response format: header(4) + responseCode(2) + errorCode(2) + data
+        val cmdCode = if (raw.length >= 6) raw.substring(4, 6) else "??"
+        val errCode = if (raw.length >= 8) raw.substring(6, 8) else "??"
+        val logType = if (errCode == "00") LogType.HSM else LogType.ERROR
+        writeLog(
+            createLogEntry(
+                type = logType,
+                message = "◄ [TCP] RSP $cmdCode  rc=$errCode  ←  $raw"
+            )
+        )
+        sentToSource(data)
+    }
+
+    override fun onReceivedFormSource(data: String?, hsmClient: HsmClient?) {
+        val raw = data ?: "NULL"
+        val cmdCode = if (raw.length >= 6) raw.substring(4, 6) else "??"
+        writeLog(
+            createLogEntry(
+                type = LogType.INFO,
+                message = "► [TCP] CMD $cmdCode  →  $raw"
+            )
+        )
+        // Fire-and-forget per request: a simulated delay here suspends only this response, never
+        // the accept loop, the client's read loop, or any other client.
+        CoroutineScope(Dispatchers.IO).launch {
+            receivedFromSource(data)
+            val response = activeHsm?.getProcessor()?.processCommand(raw)
+            if (!holdMessage) {
+                // Hold-message is the user timing a response by hand; simulation stays out of its
+                // way so the two can never compound.
+                applySimulationAndSend(cmdCode, response, hsmClient)
+            } else {
+                sendHoldMessageCallback = {
+                    hsmClient?.send(response)
+                    sendHoldMessageCallback = null
+                }
+            }
+        }
+    }
+
+    /**
+     * Runs [response] past the simulation engine — which applies any latency itself — and then sends,
+     * drops, corrupts or resets according to what it decides.
+     */
+    private suspend fun applySimulationAndSend(
+        commandCode: String,
+        response: String?,
+        hsmClient: HsmClient?,
+    ) {
+        val settings = simulation.value
+        // Refreshed per response rather than at connect time, so a throttle switched on mid-test
+        // applies to connections that are already open.
+        hsmClient?.slowWriteBytesPerSecond =
+            if (settings.enabled && settings.connection.enabled) {
+                settings.connection.slowWriteBytesPerSecond
+            } else {
+                0
+            }
+
+        val decision = simulationEngine.beforeResponse(
+            commandCode = commandCode,
+            activeConnections = _hsmState.value.activeClients.size,
+        )
+        when (decision) {
+            is ResponseDecision.Send -> hsmClient?.send(response)
+
+            is ResponseDecision.Drop -> {
+                writeLog(
+                    createLogEntry(
+                        type = LogType.ERROR,
+                        message = "SIMULATION — response withheld for $commandCode (${decision.reason})",
+                    )
+                )
+                // The read loop stays alive, so the client is left waiting — that is the point.
+                if (decision.closeConnection) hsmClient?.close()
+            }
+
+            is ResponseDecision.ResetConnection -> {
+                writeLog(
+                    createLogEntry(
+                        type = LogType.ERROR,
+                        message = "SIMULATION — connection reset before responding to $commandCode (${decision.reason})",
+                    )
+                )
+                hsmClient?.close()
+            }
+
+            is ResponseDecision.SubstituteError -> {
+                val substituted = HsmErrorInjection.applyErrorCode(response, decision.errorCode)
+                writeLog(
+                    createLogEntry(
+                        type = LogType.ERROR,
+                        message = "SIMULATION — $commandCode answered with error ${decision.errorCode} " +
+                                "(${ThalesErrorCodes.getDescription(decision.errorCode)}) — ${decision.reason}",
+                    )
+                )
+                hsmClient?.send(substituted)
+            }
+        }
+    }
+
+    override fun onAuditLog(auditLog: AuditEntry) {
+        writeLog(
+            createLogEntry(
+                type = LogType.INFO,
+                message = auditLog.toString()
+            )
+        )
+    }
+
+    override fun log(auditLog: String) {
+        writeLog(
+            createLogEntry(
+                type = LogType.INFO,
+                message = auditLog.toString()
+            )
+        )
+    }
+
+    override fun onFormattedRequest(log: String) {
+        receivedFromSourceFormatted.invoke(log)
+    }
+
+    override fun onFormattedResponse(log: String) {
+        sentToSourceFormatted.invoke(log)
+    }
+
+}

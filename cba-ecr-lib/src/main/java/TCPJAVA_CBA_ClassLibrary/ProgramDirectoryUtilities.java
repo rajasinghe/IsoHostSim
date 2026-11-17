@@ -10,7 +10,6 @@ import java.io.File;
 import java.net.URISyntaxException;
 /**
  *
- * @author HP PC
  */
 public class ProgramDirectoryUtilities extends Utility {
     

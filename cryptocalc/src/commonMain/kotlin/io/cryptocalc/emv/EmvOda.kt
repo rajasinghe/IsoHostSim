@@ -1,7 +1,7 @@
 package io.cryptocalc.emv
 
-import ai.cortex.core.hexToBytes
-import ai.cortex.core.toHexUpper
+import lk.cba.isocore.hexToBytes
+import lk.cba.isocore.toHexUpper
 import io.cryptocalc.crypto.primitives.Digests
 import io.cryptocalc.math.BigInt
 import io.cryptocalc.rsa.Rsa

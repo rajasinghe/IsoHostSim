@@ -1,6 +1,6 @@
 package io.cryptocalc.crypto.engines
 
-import ai.cortex.core.IsoUtil
+import lk.cba.isocore.IsoUtil
 import io.cryptocalc.crypto.engines.encryption.TdesCalculatorEngine
 import kotlin.test.Test
 import kotlin.test.assertEquals

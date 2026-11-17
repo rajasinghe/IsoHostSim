@@ -1,14 +1,14 @@
 package io.cryptocalc.crypto.engines.keys
 
-import ai.cortex.core.CryptoUtils
-import ai.cortex.core.IsoUtil
-import ai.cortex.core.types.AlgorithmType
-import ai.cortex.core.types.CipherMode
-import ai.cortex.core.types.CryptoAlgorithm
-import ai.cortex.core.types.KcvType
-import ai.cortex.core.types.Key
-import ai.cortex.core.types.KeyParity
-import ai.cortex.core.types.UdkDerivationType
+import lk.cba.isocore.CryptoUtils
+import lk.cba.isocore.IsoUtil
+import lk.cba.isocore.types.AlgorithmType
+import lk.cba.isocore.types.CipherMode
+import lk.cba.isocore.types.CryptoAlgorithm
+import lk.cba.isocore.types.KcvType
+import lk.cba.isocore.types.Key
+import lk.cba.isocore.types.KeyParity
+import lk.cba.isocore.types.UdkDerivationType
 import io.cryptocalc.crypto.engines.encryption.EMVEngines
 import io.cryptocalc.crypto.engines.encryption.AesCalculatorEngine
 import io.cryptocalc.crypto.engines.encryption.TdesCalculatorEngine
@@ -16,7 +16,7 @@ import io.cryptocalc.crypto.engines.encryption.models.HashingEncryptionEnginePar
 import io.cryptocalc.crypto.engines.encryption.models.SymmetricEncryptionEngineParameters
 import io.cryptocalc.emv.calculators.emv41.SessionKeyInput
 import io.cryptocalc.emv.calculators.emv41.UdkDerivationInput
-import ai.cortex.core.toHexUpper
+import lk.cba.isocore.toHexUpper
 import kotlin.math.pow
 
 internal class KeysEngineImpl(override val emvEngines: EMVEngines) : KeysEngine {

@@ -1,6 +1,6 @@
 package io.cryptocalc.crypto.engines
 
-import ai.cortex.core.IsoUtil
+import lk.cba.isocore.IsoUtil
 import io.cryptocalc.crypto.primitives.Des
 import io.cryptocalc.crypto.primitives.Tdes
 

@@ -1,6 +1,6 @@
 package io.cryptocalc.crypto.engines.encryption.models
 
-import ai.cortex.core.types.AlgorithmType
+import lk.cba.isocore.types.AlgorithmType
 import io.cryptocalc.crypto.engines.encryption.models.EncryptionEngineParameters
 
 data class HashingEncryptionEngineParameters(

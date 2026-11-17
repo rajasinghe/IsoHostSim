@@ -1,15 +1,15 @@
 package io.cryptocalc.emv.calculators.emv41
 
-import ai.cortex.core.IsoUtil
+import lk.cba.isocore.IsoUtil
 import io.cryptocalc.core.BaseCalculator
 import io.cryptocalc.core.CalculatorCapabilities
 import io.cryptocalc.core.CalculatorSchema
 import io.cryptocalc.core.ParameterSchema
 import io.cryptocalc.core.ParameterType
 import io.cryptocalc.core.ParameterValidation
-import ai.cortex.core.types.CalculatorCategory
-import ai.cortex.core.types.CryptoAlgorithm
-import ai.cortex.core.types.OperationType
+import lk.cba.isocore.types.CalculatorCategory
+import lk.cba.isocore.types.CryptoAlgorithm
+import lk.cba.isocore.types.OperationType
 
 
 class Emv41CryptoCalculator() : BaseCalculator<EMVCalculatorInput, EMVCalculatorResult>() {

@@ -6,7 +6,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
-const catalog = readFileSync(join(root, '..', 'tools-ui/src/commonMain/kotlin/in/aicortex/iso8583studio/tools/ToolCatalog.kt'), 'utf8');
+const catalog = readFileSync(join(root, '..', 'tools-ui/src/commonMain/kotlin/lk/cba/isohostsim/tools/ToolCatalog.kt'), 'utf8');
 const all = new Set();
 const ready = new Set();
 for (const line of catalog.split('\n')) {

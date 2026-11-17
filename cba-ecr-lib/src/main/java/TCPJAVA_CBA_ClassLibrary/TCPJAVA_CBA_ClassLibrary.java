@@ -13,7 +13,6 @@ import org.json.JSONObject;
 
 /**
  *
- * @author HP PC
  */
 public class TCPJAVA_CBA_ClassLibrary {
 
@@ -70,9 +69,12 @@ public class TCPJAVA_CBA_ClassLibrary {
     //USB communication functions
     //usb serial communication check status
     public JSONObject CheckStatus() {
-        USbConnector connector = USbConnector.getInstance();
-        CheckStatus checkStatus = new CheckStatus(connector);
-        return checkStatus.checkStatus();
+        // ISO8583Studio patch: the original went through USbConnector, whose serialPort field is
+        // never assigned, so every USB Check Status failed with NAK 17 before anything was sent.
+        // CheckStatusRequest.CheckStatus_USB() is the library's own working implementation on the
+        // shared PaxPort, the same path every other USB command uses.
+        CheckStatusRequest checkStatusRequest = new CheckStatusRequest();
+        return checkStatusRequest.CheckStatus_USB();
     }
 
     //usb serial communication RequestBin
@@ -112,7 +114,7 @@ public class TCPJAVA_CBA_ClassLibrary {
         return TransferKeyRequestResponse;
     }
 
-    //gimhan added - Settlement, Request Last Settlement and Transaction Cancel
+    // Settlement, Request Last Settlement and Transaction Cancel
     //TCP communication settlement
     public JSONObject RequestDoSettlement(String strIP, int Port, Boolean EnableEncrypt) {
         SettleRequest settleRequest = new SettleRequest(strIP, Port, EnableEncrypt);

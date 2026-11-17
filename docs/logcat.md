@@ -1,10 +1,22 @@
-# Logcat tab
+# Logcat
 
-The Host Simulator has a **Logcat** tab next to **Logs**. It shows the live log the way Android Studio's
-Logcat does: one coloured line per entry, a query box with suggestions, and a history of recent queries.
+**Logcat** is a tool of its own in the studio. It sits in the **Payment Simulators** group on the home
+screen next to the Host and ECR simulators, and in the menus under Simulators → Transaction Processing and
+Tools → Device Tools. Each opens in its own tab, so you can run a transaction from the ECR Simulator, watch
+the request arrive in the Host Simulator and read the terminal's log here, switching tabs as you go.
 
-It reads the same in-memory buffer as the Logs tab (the most recent *Max live log entries* lines, 5,000 by
-default). The Logs tab remains the place to scroll the complete history kept on disk.
+It streams the log of a connected Android terminal over adb and shows it the way Android Studio's Logcat
+does: one coloured line per entry, a query box with suggestions, and a history of recent queries.
+
+## Connecting a terminal
+
+1. Connect the terminal by USB with USB debugging on, or over Wi-Fi with `adb connect <ip>:5555`.
+2. Open Logcat, pick the device from the list (Refresh re-reads `adb devices`) and press **Start**.
+3. **Stop** ends the stream. **Clear device log** runs `adb logcat -c` on the terminal and empties the view.
+
+The tool runs `adb -s <serial> logcat -v threadtime`, starting with the device's last 2,000 lines, and keeps
+the most recent 20,000. It uses the adb from the Android SDK the studio finds, or `adb` on the PATH. The
+stream keeps running while you switch to another tab, and the adb process is stopped when the studio exits.
 
 ## Columns
 
@@ -12,36 +24,32 @@ default). The Logs tab remains the place to scroll the complete history kept on 
 
 | Column | Where it comes from |
 |---|---|
-| timestamp | wall-clock time the entry was logged |
-| pid-tid | the simulator's process id and the id of the thread that logged (one thread per connection) |
-| tag | the class that logged, for example `GatewayClient` or `Iso8583Data`; an explicit source wins |
-| package | the gateway's name |
-| level | V D I W E A, folded from the simulator's own log types |
-
-Levels: `VERBOSE` = trace, field and bitmap detail; `DEBUG` = socket, protocol and metrics;
-`INFO` = connections, transactions, messages and the rest; `WARN` = warnings; `ERROR` = errors and security.
+| timestamp | the device's time for the line |
+| pid-tid | the process and thread that logged it |
+| tag | the Android log tag |
+| package | the app running as that process, read from `ps` on the device every 5 seconds |
+| level | V D I W E A (logcat's F, fatal, is shown as A) |
 
 ## Query language
 
 ```
-tag:GatewayClient          substring, case-insensitive
-tag=:GatewayClient         exact match
-tag~:"Gateway|Iso"         regular expression (Java syntax); quote values containing spaces, | & ( )
--tag:Bitmap                negation, for any key or group
+tag:TcpIso8583Online       substring, case-insensitive
+tag=:EmvOnline             exact match
+tag~:"Online|ECR"          regular expression (Java syntax); quote values containing spaces, | & ( )
+-tag:InputDispatcher       negation, for any key or group
 level:WARN                 that level and above (V D I W E A, or the full word)
-message:"wrong parsed"     text in the message; a bare word searches message and tag
+message:"response tpdu"    text in the message; a bare word searches message and tag
 age:5m                     last 30s / 5m / 2h / 1d
 is:crash   is:stacktrace
-type:TRANSACTION           the simulator's own log type
 thread:34                  thread id or name
-package:mine               this gateway (always true here)
+package:com.pax.edc        the app that logged the line
 line:"..."                 the whole formatted line
 ```
 
 Terms are ANDed. `|` or `OR` ORs them, AND binds tighter than OR, and parentheses group:
 
 ```
-(tag:GatewayClient | tag:Iso8583Data) level:INFO -message:Bitmap
+(tag:TcpIso8583Online | tag:EmvOnline) level:INFO -message:greenDAO
 ```
 
 A `word:` that is not a key (a URL, for instance) is read as plain text. A query that does not parse keeps

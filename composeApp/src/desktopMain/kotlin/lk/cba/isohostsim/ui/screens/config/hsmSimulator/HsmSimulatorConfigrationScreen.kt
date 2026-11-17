@@ -1,0 +1,128 @@
+package lk.cba.isohostsim.ui.screens.config.hsmSimulator
+
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Scaffold
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.runtime.Composable
+import lk.cba.isohostsim.ui.navigation.Destination
+import lk.cba.isohostsim.ui.navigation.stateConfigs.hsm.HSMSimulatorConfig
+import lk.cba.isohostsim.ui.navigation.NavigationController
+import lk.cba.isohostsim.ui.navigation.stateConfigs.SimulatorType
+import lk.cba.isohostsim.ui.navigation.stateConfigs.UnifiedSimulatorState
+import lk.cba.isohostsim.ui.screens.components.AppBarWithBack
+import lk.cba.isohostsim.ui.screens.config.ConfigTab
+import lk.cba.isohostsim.ui.screens.config.ContainerConfig
+import lk.cba.isohostsim.ui.screens.config.SimulatorConfigLayout
+import lk.cba.isohostsim.ui.session.SimulatorSessionManager
+
+@Composable
+fun HsmSimulatorConfigScreen(
+    navigationController: NavigationController,
+    appState: UnifiedSimulatorState,
+) {
+    val tabsList = listOf(
+        ConfigTab(
+            label = "Profile",
+            content = {
+                HSMProfileTab(config = appState.currentConfig(SimulatorType.HSM) as HSMSimulatorConfig) {
+                    appState.updateConfig(it)
+                }
+            }
+        ),
+        ConfigTab(
+            label = "Network",
+            content = {
+                val config = appState.currentConfig(SimulatorType.HSM) as HSMSimulatorConfig
+                NetworkConfigTab(
+                    networkConfig = config.network,
+                    hsmConfig = config.hsmConfig,
+                    onConfigUpdated = { appState.updateConfig(config.copy(network = it)) },
+                    onHsmConfigUpdated = { appState.updateConfig(config.copy(hsmConfig = it)) }
+                )
+            }
+        ),
+        ConfigTab(
+            label = "Security",
+            content = {
+                val config = appState.currentConfig(SimulatorType.HSM) as HSMSimulatorConfig
+                SecurityConfigTab(
+                    securityConfig = config.security,
+                    onConfigUpdated = {
+                        appState.updateConfig(config.copy(security = it))
+                    }
+                )
+            }
+        ),
+        ConfigTab(
+            label = "Keys",
+            content = {
+                val config = appState.currentConfig(SimulatorType.HSM) as HSMSimulatorConfig
+                KeyManagementTab(
+                    keyManagementConfig = config.keyManagement,
+                    onConfigUpdated = {
+                        appState.updateConfig(config.copy(keyManagement = it))
+                    }
+                )
+            }
+        ),
+        ConfigTab(
+            label = "Advanced",
+            content = {
+                val config = appState.currentConfig(SimulatorType.HSM) as HSMSimulatorConfig
+                AdvancedOptionsTab(
+                    advancedConfig = config.advanced,
+                    onConfigUpdated = {
+                        appState.updateConfig(config.copy(advanced = it))
+                    }
+                )
+            }
+        ),
+    )
+
+    Scaffold(
+        topBar = {
+            AppBarWithBack(
+                title = "HSM Simulator Configuration",
+                onBackClick = { navigationController.goBack() }
+            )
+        },
+        backgroundColor = MaterialTheme.colors.background
+    ) {
+        SimulatorConfigLayout(
+            config = ContainerConfig(
+                tabs = tabsList,
+                label = "HSM Simulator",
+                currentConfig = {
+                    appState.currentConfig(SimulatorType.HSM) as HSMSimulatorConfig?
+                },
+                simulatorConfigs = appState.hsmConfigs.value,
+                icon = Icons.Default.Security
+            ),
+            onSelectConfig = { appState.selectConfig(it.id) },
+            createNewConfig = {
+                appState.addConfig(
+                    HSMSimulatorConfig(
+                        id = appState.generateConfigId(),
+                        name = "HSM-${appState.hsmConfigs.value.size + 1}"
+                    )
+                )
+            },
+            onDeleteConfig = {
+                appState.currentConfig(SimulatorType.HSM)?.id?.let { appState.deleteConfig(it) }
+            },
+            onSaveAllConfigs = {
+                appState.updateConfig(
+                    (appState.currentConfig(SimulatorType.HSM) as HSMSimulatorConfig).copy(
+                        modifiedDate = System.currentTimeMillis()
+                    )
+                )
+                appState.save()
+            },
+            onLaunchSimulator = { config ->
+                SimulatorSessionManager.launchSimulator(config)
+                navigationController.navigateTo(Destination.Home)
+            }
+        )
+    }
+}

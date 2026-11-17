@@ -1,9 +1,9 @@
 package io.cryptocalc.emv.calculators.masterCard
 
-import ai.cortex.core.types.CalculatorInput
-import ai.cortex.core.types.CalculatorResult
-import ai.cortex.core.types.OperationType
-import ai.cortex.core.types.ResultMetadata
+import lk.cba.isocore.types.CalculatorInput
+import lk.cba.isocore.types.CalculatorResult
+import lk.cba.isocore.types.OperationType
+import lk.cba.isocore.types.ResultMetadata
 import io.cryptocalc.emv.calculators.emv41.SessionDerivation
 import io.cryptocalc.emv.calculators.emv41.UdkDerivation
 import io.cryptocalc.emv.calculators.emv41.UdkDerivationInput

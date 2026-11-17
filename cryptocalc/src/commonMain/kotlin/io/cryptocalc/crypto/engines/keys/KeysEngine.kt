@@ -1,9 +1,9 @@
 package io.cryptocalc.crypto.engines.keys
 
-import ai.cortex.core.types.AlgorithmType
-import ai.cortex.core.types.CryptoAlgorithm
-import ai.cortex.core.types.KcvType
-import ai.cortex.core.types.Key
+import lk.cba.isocore.types.AlgorithmType
+import lk.cba.isocore.types.CryptoAlgorithm
+import lk.cba.isocore.types.KcvType
+import lk.cba.isocore.types.Key
 import io.cryptocalc.crypto.engines.Engine
 import io.cryptocalc.emv.calculators.emv41.SessionKeyInput
 import io.cryptocalc.emv.calculators.emv41.UdkDerivationInput

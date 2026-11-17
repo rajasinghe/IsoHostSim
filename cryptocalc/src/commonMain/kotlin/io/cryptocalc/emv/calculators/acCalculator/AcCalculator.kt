@@ -1,11 +1,11 @@
 package io.cryptocalc.emv.calculators.acCalculator
 
-import ai.cortex.core.EMVTagParser
-import ai.cortex.core.types.CalculatorCategory
-import ai.cortex.core.types.CryptoAlgorithm
-import ai.cortex.core.types.CryptogramType
-import ai.cortex.core.types.OperationType
-import ai.cortex.core.types.PaddingMethods
+import lk.cba.isocore.EMVTagParser
+import lk.cba.isocore.types.CalculatorCategory
+import lk.cba.isocore.types.CryptoAlgorithm
+import lk.cba.isocore.types.CryptogramType
+import lk.cba.isocore.types.OperationType
+import lk.cba.isocore.types.PaddingMethods
 import io.cryptocalc.core.BaseCalculator
 import io.cryptocalc.core.CalculatorCapabilities
 import io.cryptocalc.core.CalculatorSchema

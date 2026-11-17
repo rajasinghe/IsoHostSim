@@ -1,9 +1,9 @@
 package io.cryptocalc.crypto.engines.keys
 
-import ai.cortex.core.IsoUtil
-import ai.cortex.core.types.AlgorithmType
-import ai.cortex.core.types.CipherMode
-import ai.cortex.core.types.CryptoAlgorithm
+import lk.cba.isocore.IsoUtil
+import lk.cba.isocore.types.AlgorithmType
+import lk.cba.isocore.types.CipherMode
+import lk.cba.isocore.types.CryptoAlgorithm
 import io.cryptocalc.crypto.engines.encryption.models.SymmetricEncryptionEngineParameters
 
 

@@ -12,7 +12,6 @@ package TCPJAVA_CBA_ClassLibrary;
  * of the last settlement the terminal completed, so the POS can confirm whether
  * a settlement went through before retrying one.
  *
- * @author gimhan added
  */
 public class LastSettleRequest extends SettleRequest {
 

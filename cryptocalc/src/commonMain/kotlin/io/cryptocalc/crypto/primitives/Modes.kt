@@ -1,7 +1,7 @@
 package io.cryptocalc.crypto.primitives
 
-import ai.cortex.core.types.CipherMode
-import ai.cortex.core.types.PaddingMethods
+import lk.cba.isocore.types.CipherMode
+import lk.cba.isocore.types.PaddingMethods
 
 /**
  * Block cipher modes of operation (ECB, CBC, CFB, OFB) and the padding schemes the tools expose.

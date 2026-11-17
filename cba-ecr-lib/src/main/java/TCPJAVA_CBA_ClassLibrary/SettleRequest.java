@@ -31,7 +31,6 @@ import org.json.JSONObject;
  *
  * LastSettleRequest reuses this class with a different dataType.
  *
- * @author gimhan added
  */
 public class SettleRequest extends Utility {
 

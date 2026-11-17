@@ -1,9 +1,9 @@
 package io.cryptocalc.crypto.engines.applicationCryptogram
 
-import ai.cortex.core.types.AlgorithmType
-import ai.cortex.core.types.CipherMode
-import ai.cortex.core.types.CryptoAlgorithm
-import ai.cortex.core.types.PaddingMethods
+import lk.cba.isocore.types.AlgorithmType
+import lk.cba.isocore.types.CipherMode
+import lk.cba.isocore.types.CryptoAlgorithm
+import lk.cba.isocore.types.PaddingMethods
 import io.cryptocalc.crypto.engines.encryption.EMVEngines
 import io.cryptocalc.crypto.engines.encryption.models.SymmetricDecryptionEngineParameters
 import io.cryptocalc.crypto.engines.encryption.models.SymmetricEncryptionEngineParameters
@@ -33,9 +33,9 @@ internal class AcEngineImpl(override val emvEngines: EMVEngines) : AcEngine {
 
     /** Concatenated values of the primitive TLV objects in [tlv], in order. */
     private fun tlvValues(tlv: ByteArray): ByteArray {
-        val parsed = ai.cortex.core.EMVTagParser.parseEMVTags(tlv)
+        val parsed = lk.cba.isocore.EMVTagParser.parseEMVTags(tlv)
         require(parsed.errors.isEmpty()) { "TLV parse error: ${parsed.errors.joinToString()}" }
-        return ai.cortex.core.EMVTagParser.getAllTags(parsed).filter { it.children.isEmpty() }.fold(ByteArray(0)) { acc, t -> acc + t.value }
+        return lk.cba.isocore.EMVTagParser.getAllTags(parsed).filter { it.children.isEmpty() }.fold(ByteArray(0)) { acc, t -> acc + t.value }
     }
 
     suspend fun generateAc(

@@ -37,7 +37,6 @@ import org.json.JSONObject;
  * terminal may refuse, and if it cannot terminate the transaction it may not
  * answer the cancel at all.
  *
- * @author gimhan added
  */
 public class TranCancelRequest extends Utility {
 

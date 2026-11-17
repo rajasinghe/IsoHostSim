@@ -15,7 +15,7 @@ original code. Nothing in the wire protocol was touched.
   - `setPreferredPortName(String)` / `getPreferredPortName()`: when set, `discover()` returns it
     without scanning. Null or blank clears it.
   - `discover()`: the original PAX-description loop runs first and is unchanged; only when it finds
-    nothing, the first port accepted by `PortMatch.isPaxPort` is used (Linux fallback).
+    nothing, `PortMatch.pickLinuxPort` picks the lowest-numbered ttyACM*/ttyUSB* port (Linux fallback). A PAX terminal exposes several CDC ports (an A910S shows ttyACM0..2) and only the first answers ECR; jSerialComm lists them newest first, so "first in the list" would pick the wrong one.
 - `ComPort.contains("COM")` → `PortMatch.isUsablePortName(ComPort)` in `BinRequest`,
   `CheckStatusRequest`, `DoSaleRequest`, `LastTranDataRequest`, `SettleRequest`,
   `TranCancelRequest`, `TransferKeyRequest`, `VoidRequest` (plus the `PortMatch` import).
@@ -36,7 +36,18 @@ original code. Nothing in the wire protocol was touched.
 
 - `TCPJAVA_CBA_ClassLibrary.closeUsb()` (new, static): calls the existing `PaxPort.shutdown()`.
 
-## Known upstream issue (not patched)
+## 4. USB Check Status (bug fix, approved by the project owner)
+
+- `TCPJAVA_CBA_ClassLibrary.CheckStatus()` (USB) now calls the library's existing
+  `CheckStatusRequest.CheckStatus_USB()`, which uses the shared `PaxPort`, instead of
+  `Requests.CheckStatus` over `USbConnector`.
+- Why: `USbConnector.send()/receive()` call `serialPort.isOpen()` before `serialPort` is ever
+  assigned, so the old path always returned `{"dataType":"NAK","error":"17"}` without writing
+  anything, on Windows too. The wire format is unchanged: `{"dataType":"active"}` plus `\n`, and the
+  reply is the terminal's ACK (or its NAK).
+- `USbConnector` and `Requests.CheckStatus` are left in place but are no longer reachable.
+
+## Known upstream issue (superseded by patch 4)
 
 `USbConnector.send()/receive()` call `serialPort.isOpen()` before `serialPort` is ever assigned,
 so the USB `CheckStatus()` facade overload (the only user of `USbConnector`) always fails with a
