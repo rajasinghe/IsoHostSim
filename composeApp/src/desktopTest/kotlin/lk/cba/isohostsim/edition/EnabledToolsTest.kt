@@ -12,7 +12,7 @@ class EnabledToolsTest {
     @Test
     fun `this release shows the host and ecr simulators and logcat`() {
         assertEquals(
-            listOf(StudioTool.HOST_SIMULATOR, StudioTool.ECR_SIMULATOR, StudioTool.LOGCAT_VIEWER, StudioTool.MESSAGE_PARSER),
+            listOf(StudioTool.HOST_SIMULATOR, StudioTool.ECR_SIMULATOR, StudioTool.LOGCAT_VIEWER, StudioTool.MESSAGE_PARSER, StudioTool.REMOTE_HOST),
             EnabledTools.visibleTools(),
         )
         assertFalse(EnabledTools.isEnabled(StudioTool.HSM_SIMULATOR))

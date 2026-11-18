@@ -65,16 +65,13 @@ import lk.cba.isohostsim.ui.design.posSunken
 /** Where the field formats come from: the standard template or a saved Host Simulator's. */
 private data class ParserFormat(val label: String, val template: Array<BitSpecific>)
 
-private enum class Mode(val label: String) { SINGLE("One packet"), COMPARE("Request vs response") }
+private enum class Mode(val label: String) { SINGLE("One packet"), COMPARE("Compare 2 packets") }
 
 /** Auto-detect, or one of the fixed length headers. */
 private sealed class FramingChoice(val label: String) {
     data object Auto : FramingChoice("Auto-detect")
     data class Fixed(val header: MessageLengthType) : FramingChoice(if (header == MessageLengthType.NONE) "None" else header.name)
 }
-
-private val FRAMING_CHOICES: List<FramingChoice> =
-    listOf(FramingChoice.Auto) + Framing.LENGTH_HEADERS.map { FramingChoice.Fixed(it) }
 
 /** The outcome of decoding one input box. */
 private sealed class Parsed {
@@ -116,8 +113,9 @@ fun IsoParserScreen(hostConfigs: List<GatewayConfig> = emptyList()) {
     }
     var format by remember(formats) { mutableStateOf(formats.first()) }
     var mode by remember { mutableStateOf(Mode.SINGLE) }
-    var framing by remember { mutableStateOf<FramingChoice>(FramingChoice.Auto) }
-    var tpdu by remember { mutableStateOf(true) }
+    // Always auto-detected; the manual length header choice is hidden from the screen.
+    val framing: FramingChoice = FramingChoice.Auto
+    val tpdu = true
     var requestText by remember { mutableStateOf("") }
     var responseText by remember { mutableStateOf("") }
     var onlyDifferences by remember { mutableStateOf(false) }
@@ -146,15 +144,8 @@ fun IsoParserScreen(hostConfigs: List<GatewayConfig> = emptyList()) {
             PosCard(Modifier.fillMaxWidth(), padding = 16.dp) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(24.dp)) {
                     Labeled("Field formats") { FormatPicker(formats, format) { format = it } }
-                    Labeled("Length header") {
-                        SegmentedChoice(FRAMING_CHOICES, framing, { it.label }, { framing = it })
-                    }
-                    if (framing != FramingChoice.Auto) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 18.dp)) {
-                            Checkbox(checked = tpdu, onCheckedChange = { tpdu = it })
-                            Text("TPDU (5 bytes)", fontSize = 14.sp)
-                        }
-                    }
+                    // The length header and TPDU are always auto-detected. A manual choice is hidden
+                    // because picking the wrong one only produced confusing parse errors.
                 }
             }
         }
@@ -327,10 +318,15 @@ private fun FieldTable(packet: DecodedPacket) {
 /** Raw bytes and offset, and the EMV tags for field 55. */
 @Composable
 private fun FieldDetail(f: DecodedField) {
-    Column(
-        Modifier.fillMaxWidth().background(posSunken()).padding(start = 16.dp + COL_FIELD, end = 16.dp, top = 8.dp, bottom = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
+    Box(Modifier.fillMaxWidth().background(posSunken()).padding(start = 16.dp + COL_FIELD, end = 16.dp, top = 8.dp, bottom = 10.dp)) {
+        FieldDetailContent(f, tagNameWidth = 200.dp)
+    }
+}
+
+/** A field's raw bytes, offset and (for field 55) EMV tags, without the row background. */
+@Composable
+private fun FieldDetailContent(f: DecodedField, tagNameWidth: androidx.compose.ui.unit.Dp) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         SelectionContainer {
             Text("Raw  ${f.rawHex}", fontFamily = FontFamily.Monospace, fontSize = 12.sp)
         }
@@ -343,7 +339,7 @@ private fun FieldDetail(f: DecodedField) {
                     tags.forEach { t ->
                         Row {
                             Text(t.tag, fontFamily = FontFamily.Monospace, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(56.dp))
-                            Text(t.name, fontSize = 12.sp, color = posMuted(), modifier = Modifier.width(200.dp))
+                            Text(t.name, fontSize = 12.sp, color = posMuted(), modifier = Modifier.width(tagNameWidth).padding(end = 8.dp))
                             Text(t.valueHex, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
                         }
                     }
@@ -365,6 +361,7 @@ private fun CompareTable(
     onOnlyDifferences: (Boolean) -> Unit,
 ) {
     val counts = rows.groupingBy { it.diff }.eachCount()
+    var expanded by remember(request, response) { mutableStateOf<Int?>(null) }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         StatusChip("MTI ${request.mti} → ${response.mti}", Tone.Accent)
         FieldDiff.entries.forEach { d -> counts[d]?.let { StatusChip("${d.label}: $it", toneOf(d)) } }
@@ -382,6 +379,7 @@ private fun CompareTable(
         }
         rows.filter { !onlyDifferences || it.diff != FieldDiff.SAME }.forEach { row ->
             Divider()
+            Column(Modifier.fillMaxWidth().clickable { expanded = if (expanded == row.number) null else row.number }) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 9.dp), verticalAlignment = Alignment.Top) {
                 Mono(row.number.toString(), COL_FIELD, bold = true)
                 Text(row.name, fontSize = 13.sp, modifier = Modifier.width(COL_NAME).padding(end = 8.dp))
@@ -395,7 +393,33 @@ private fun CompareTable(
                     if (row.diff != FieldDiff.SAME) StatusChip(row.diff.label, toneOf(row.diff)) else Text("Same", fontSize = 12.sp, color = posMuted())
                 }
             }
+            if (expanded == row.number) CompareDetail(row)
+            }
         }
+    }
+    Text(
+        "Click a row for each packet's raw bytes" + if (rows.any { it.number == 55 }) " and, for field 55, its EMV tags." else ".",
+        color = posMuted(),
+        fontSize = 12.sp,
+        modifier = Modifier.padding(top = 6.dp),
+    )
+}
+
+/** Both packets' details for one field, each under its own column. */
+@Composable
+private fun CompareDetail(row: ComparedField) {
+    Row(
+        Modifier.fillMaxWidth().background(posSunken())
+            .padding(start = 16.dp + COL_FIELD + COL_NAME, end = 16.dp, top = 8.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        listOf(row.request, row.response).forEach { f ->
+            Box(Modifier.weight(1f).padding(end = 12.dp)) {
+                if (f != null) FieldDetailContent(f, tagNameWidth = 150.dp)
+                else Text("Not in this packet", fontSize = 12.sp, color = posMuted())
+            }
+        }
+        Box(Modifier.width(120.dp))
     }
 }
 

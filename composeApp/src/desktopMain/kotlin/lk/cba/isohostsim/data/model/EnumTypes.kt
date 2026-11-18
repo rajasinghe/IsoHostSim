@@ -463,6 +463,15 @@ enum class StudioTool(
         opensAsTab = true,
     ),
 
+    REMOTE_HOST(
+        "Remote Host",
+        "Watch a shared remote host's traffic by terminal, and set per-terminal overrides",
+        Icons.Default.Cloud,
+        isNew = true,
+        screen = Destination.RemoteHost,
+        opensAsTab = true,
+    ),
+
     // CONVERTERS AND UTILITIES
     BASE64_ENCODER(
         "Base64 Encoder",

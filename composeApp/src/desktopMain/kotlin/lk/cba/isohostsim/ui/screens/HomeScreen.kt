@@ -78,6 +78,7 @@ enum class ToolSuite(
             // Beside the Host and ECR simulators so QA can switch between all three tabs.
             StudioTool.LOGCAT_VIEWER,
             StudioTool.MESSAGE_PARSER,
+            StudioTool.REMOTE_HOST,
         )
     ),
 
@@ -188,13 +189,12 @@ enum class ToolSuite(
 
 
 /**
- * Landing page: a welcome line with tool search, three ways to start, the host simulators and the tools.
+ * Landing page: a welcome line with tool search, the host simulators and the tools.
  */
 @Composable
 fun HomeScreen(
     viewModel: HomeScreenViewModel,
     onToolSelected: (StudioTool) -> Unit,
-    onGetStarted: () -> Unit = {}
 ) {
     LaunchedEffect(Unit) {
         delay(200)
@@ -245,39 +245,7 @@ fun HomeScreen(
             )
         }
 
-        // ── Start with ──
         if (query.isBlank()) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SectionTitle("Start with")
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
-                    if (EnabledTools.isEnabled(StudioTool.HOST_SIMULATOR)) {
-                        StartCard(
-                            title = "New host profile",
-                            text = "Writes a starter file with sale, void, reversal and settlement, then adds the simulator.",
-                            primary = true,
-                            onClick = onGetStarted,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    if (EnabledTools.isEnabled(StudioTool.MESSAGE_PARSER)) {
-                        StartCard(
-                            title = "Decode a packet",
-                            text = "Paste hex from a log and read every field.",
-                            onClick = { onToolSelected(StudioTool.MESSAGE_PARSER) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    if (EnabledTools.isEnabled(StudioTool.ECR_SIMULATOR)) {
-                        StartCard(
-                            title = "Check the terminal",
-                            text = "Send a status check from the ECR simulator.",
-                            onClick = { onToolSelected(StudioTool.ECR_SIMULATOR) },
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
-            }
-
             // ── Host simulators ──
             if (EnabledTools.isEnabled(StudioTool.HOST_SIMULATOR)) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -285,7 +253,7 @@ fun HomeScreen(
                     PosCard(padding = 0.dp, modifier = Modifier.fillMaxWidth()) {
                         if (hostConfigs.isEmpty()) {
                             Text(
-                                "No host simulators yet. Choose New host profile to create one.",
+                                "No host simulators yet. Open the Host Simulator tool to create one.",
                                 color = posMuted(),
                                 modifier = Modifier.padding(20.dp),
                             )
@@ -335,39 +303,6 @@ fun HomeScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun StartCard(
-    title: String,
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    primary: Boolean = false,
-) {
-    val shape = RoundedCornerShape(12.dp)
-    val accent = MaterialTheme.colors.primary
-    Column(
-        modifier = modifier
-            .clip(shape)
-            .background(if (primary) accent else MaterialTheme.colors.surface)
-            .border(1.dp, if (primary) accent else posLine(), shape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(
-            title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (primary) MaterialTheme.colors.onPrimary else MaterialTheme.colors.onSurface,
-        )
-        Text(
-            text,
-            fontSize = 13.sp,
-            color = if (primary) MaterialTheme.colors.onPrimary.copy(alpha = 0.85f) else posMuted(),
-        )
     }
 }
 

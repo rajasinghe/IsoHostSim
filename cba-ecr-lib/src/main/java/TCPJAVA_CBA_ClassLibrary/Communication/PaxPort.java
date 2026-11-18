@@ -90,8 +90,25 @@ public class PaxPort {
     public static SerialPort acquire(String comPort) {
         synchronized (portLock) {
             if (port != null && port.isOpen()) {
-                users++;
-                return port;
+                // ISO8583Studio patch: reuse only while the cached port is still the discovered device.
+                // After an unplug/replug the device can come back under a new name (Linux: ttyACM0 ->
+                // ttyACM1 while the old handle is held; Windows: a different COM number), so close the
+                // stale handle and open the new one. Same name -> original behaviour (reuse).
+                // ISO8583Studio patch: a handle whose device was unplugged still reports isOpen(), and
+                // when the device comes back under the same name every write fails with "port appears
+                // to have been shutdown or disconnected". bytesAvailable() returns -1 on such a dead
+                // handle, so only reuse a port that still answers it.
+                if (PortMatch.isSamePort(port.getSystemPortName(), comPort) && port.bytesAvailable() >= 0
+                        && !stale) {
+                    users++;
+                    return port;
+                }
+                stale = false;
+                port.closePort();
+                port = null;
+                users = 0;
+                cancelPending = false;
+                cancelReplyPayload = null;
             }
 
             SerialPort candidate = SerialPort.getCommPort(comPort);
@@ -122,6 +139,17 @@ public class PaxPort {
                 users--;
             }
         }
+    }
+
+    // ISO8583Studio patch: set by markStale(); the next acquire() closes and reopens the port.
+    private static volatile boolean stale = false;
+
+    /**
+     * ISO8583Studio patch: flag the open port as dead (e.g. after a write failure) so the next
+     * acquire() closes it and opens the device again, without disturbing a command in progress.
+     */
+    public static void markStale() {
+        stale = true;
     }
 
     /** Close the port for good. Nothing in a normal transaction flow calls this. */

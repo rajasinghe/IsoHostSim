@@ -73,6 +73,7 @@ object EnabledTools {
         // StudioTool.AS2805_CALCULATOR,            // AS2805 Calculator
         // StudioTool.BITMAP_CALCULATOR,            // Bitmap Calculator
         StudioTool.MESSAGE_PARSER,                  // ISO8583 Parser
+        StudioTool.REMOTE_HOST,                     // Remote Host
         // StudioTool.BASE64_ENCODER,               // Base64 Encoder
         // StudioTool.BASE94_ENCODER,               // Base94 Encoder
         // StudioTool.BCD_CONVERTER,                // BCD Converter

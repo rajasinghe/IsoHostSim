@@ -22,6 +22,7 @@ import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -55,6 +56,7 @@ private data class NavItem(val label: String, val icon: ImageVector, val tool: S
 
 private val NAV_ITEMS = listOf(
     NavItem("Host simulator", Icons.Default.Dns, StudioTool.HOST_SIMULATOR),
+    NavItem("Remote host", Icons.Default.Cloud, StudioTool.REMOTE_HOST),
     NavItem("ECR simulator", Icons.Default.PointOfSale, StudioTool.ECR_SIMULATOR),
     NavItem("ISO8583 parser", Icons.Default.Search, StudioTool.MESSAGE_PARSER),
     NavItem("Logcat", Icons.Default.Terminal, StudioTool.LOGCAT_VIEWER),

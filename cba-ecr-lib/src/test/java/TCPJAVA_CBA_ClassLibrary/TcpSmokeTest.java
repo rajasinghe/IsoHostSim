@@ -3,6 +3,7 @@ package TCPJAVA_CBA_ClassLibrary;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -121,6 +122,31 @@ class TcpSmokeTest {
 
             assertEquals("settleRequest", response.getString("dataType"), response.toString());
             assertEquals("SETTLED", response.getJSONObject("data").getString("status"));
+        }
+    }
+
+    @Test
+    void binResponseReturnsWithoutExtraSecond() throws Exception {
+        try (ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress())) {
+            String finalResponse = new JSONObject()
+                    .put("dataType", "binRequest")
+                    .put("checksum", "x")
+                    .put("data", new JSONObject().put("binReferenceNo", "B123"))
+                    .toString();
+            CompletableFuture<JSONObject> terminal = fakeTerminal(server, finalResponse);
+
+            JSONObject request = new JSONObject()
+                    .put("dataType", "binRequest")
+                    .put("data", new JSONObject().put("function", "binRequest"));
+            long start = System.nanoTime();
+            JSONObject response = new TCPJAVA_CBA_ClassLibrary()
+                    .RequestBin("127.0.0.1", server.getLocalPort(), request, false, 10);
+            long elapsedMs = (System.nanoTime() - start) / 1_000_000;
+
+            assertEquals("binRequest", terminal.get(10, TimeUnit.SECONDS).getString("dataType"));
+            assertEquals("B123", response.getJSONObject("data").getString("binReferenceNo"), response.toString());
+            // fake terminal waits 300 ms between ACK and response; the original added ~1000 ms on top
+            assertTrue(elapsedMs < 900, "RequestBin took " + elapsedMs + " ms");
         }
     }
 }

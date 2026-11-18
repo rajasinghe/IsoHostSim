@@ -61,6 +61,31 @@ public final class PortMatch {
         return best;
     }
 
+    /**
+     * True when two port names refer to the same device, ignoring the "/dev/" (Linux) and
+     * "\\.\" (Windows) prefixes, since jSerialComm reports the short system name ("ttyACM0", "COM5").
+     * A null or empty discovered name counts as "same" so a failed scan never drops an open port.
+     */
+    public static boolean isSamePort(String openName, String discoveredName) {
+        if (discoveredName == null || discoveredName.trim().isEmpty()) {
+            return true;
+        }
+        return shortName(openName).equals(shortName(discoveredName));
+    }
+
+    private static String shortName(String name) {
+        if (name == null) {
+            return "";
+        }
+        String n = name.trim();
+        if (n.startsWith("/dev/")) {
+            n = n.substring("/dev/".length());
+        } else if (n.startsWith("\\\\.\\")) {
+            n = n.substring("\\\\.\\".length());
+        }
+        return n;
+    }
+
     /** ttyACM0, /dev/ttyACM0, ttyUSB0, /dev/ttyUSB0 ... */
     public static boolean isLinuxUsbSerialName(String name) {
         if (name == null) {

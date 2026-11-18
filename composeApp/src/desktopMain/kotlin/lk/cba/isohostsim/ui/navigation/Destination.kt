@@ -54,6 +54,7 @@ import lk.cba.isohostsim.ui.screens.generic.CheckDigitScreen
 import lk.cba.isohostsim.ui.screens.payments.dukpt.DukptIso9797Screen
 import lk.cba.isohostsim.ui.screens.generic.HashCalculatorScreen
 import lk.cba.isohostsim.ui.screens.parser.IsoParserScreen
+import lk.cba.isohostsim.ui.screens.remoteHost.RemoteHostScreen
 import lk.cba.isohostsim.ui.screens.generic.PinBlockGeneralScreen
 import lk.cba.isohostsim.ui.screens.generic.Track2Screen
 import lk.cba.isohostsim.ui.screens.hostSimulator.HostSimulatorScreen
@@ -113,8 +114,7 @@ sealed class Destination : Screen {
                             navigationController.navigateTo(tool.screen)
                         }
                     }
-                },
-                onGetStarted = { navigationController.navigateTo(HostSimulatorConfig) }
+                }
             )
         }
     }
@@ -382,6 +382,13 @@ sealed class Destination : Screen {
         @Composable
         override fun Content() {
             IsoParserScreen(hostConfigs = appState.value.hostConfigs.value)
+        }
+    }
+
+    object RemoteHost : Screen {
+        @Composable
+        override fun Content() {
+            RemoteHostScreen()
         }
     }
 

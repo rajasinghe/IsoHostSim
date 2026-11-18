@@ -124,7 +124,7 @@ class LogcatSnapshotTest {
     @Test
     fun `light theme renders`() = runDesktopComposeUiTest(width = 1280, height = 520) {
         val entries = mutableStateListOf<LogEntry>().apply { addAll(sample()) }
-        val state = LogcatState()
+        val state = LogcatState().apply { darkTheme = false }
         setContent { AppTheme(darkTheme = false) { LogcatTab(state, entries, "host-sim", 5000, { entries.clear() }) } }
         waitForIdle()
         state.anchor = 27; state.focus = 27

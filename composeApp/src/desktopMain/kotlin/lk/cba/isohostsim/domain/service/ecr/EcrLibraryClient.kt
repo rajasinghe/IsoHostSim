@@ -101,7 +101,7 @@ class EcrLibraryClient(
         val port = target.port
         fun req() = requireNotNull(request) { "${command.label} needs a request object" }
 
-        return when (command) {
+        val response = when (command) {
             EcrCommand.CHECK_STATUS ->
                 if (tcp) library.CheckStatus(ip, port) else library.CheckStatus()
             EcrCommand.BIN_REQUEST ->
@@ -126,6 +126,13 @@ class EcrLibraryClient(
             EcrCommand.TRANSACTION_CANCEL ->
                 if (tcp) library.RequestTransactionCancel(ip, port) else library.RequestTransactionCancel()
         }
+        // A USB write failure (NAK 17) means the cached port is dead, typically after the terminal was
+        // unplugged and plugged back in. Flag it so the next command reopens the device instead of
+        // failing until the simulator is restarted.
+        if (!tcp && response.optString("dataType") == "NAK" && response.opt("error")?.toString() == "17") {
+            PaxPort.markStale()
+        }
+        return response
     }
 
     companion object {

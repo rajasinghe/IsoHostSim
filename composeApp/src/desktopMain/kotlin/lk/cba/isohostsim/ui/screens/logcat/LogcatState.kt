@@ -24,8 +24,10 @@ enum class LogcatFormat(val label: String) {
 class LogcatState {
     var query by mutableStateOf(TextFieldValue(""))
     var format by mutableStateOf(LogcatFormat.STANDARD)
+    /** Dark like Android Studio's Logcat, whatever the app theme is; the toolbar button flips it. */
+    var darkTheme by mutableStateOf(true)
     var showTimestamp by mutableStateOf(true)
-    var showPidTid by mutableStateOf(true)
+    var showPidTid by mutableStateOf(false)
     var showTag by mutableStateOf(true)
     var showPackage by mutableStateOf(true)
     var showLevel by mutableStateOf(true)

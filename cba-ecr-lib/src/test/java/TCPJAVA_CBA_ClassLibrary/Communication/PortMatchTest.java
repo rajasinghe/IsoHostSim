@@ -47,6 +47,22 @@ class PortMatchTest {
     }
 
     @Test
+    void samePortIgnoresPrefixes() {
+        assertTrue(PortMatch.isSamePort("ttyACM0", "/dev/ttyACM0"));
+        assertTrue(PortMatch.isSamePort("COM5", "COM5"));
+        assertTrue(PortMatch.isSamePort("COM5", "\\\\.\\COM5"));
+        assertTrue(PortMatch.isSamePort("ttyACM0", ""), "empty discovery keeps the open port");
+        assertTrue(PortMatch.isSamePort("ttyACM0", null));
+    }
+
+    @Test
+    void replugUnderNewNameIsDifferentPort() {
+        assertFalse(PortMatch.isSamePort("ttyACM0", "ttyACM1"));
+        assertFalse(PortMatch.isSamePort("ttyACM0", "/dev/ttyACM1"));
+        assertFalse(PortMatch.isSamePort("COM5", "COM7"));
+    }
+
+    @Test
     void preferredPortOverridesDiscovery() {
         PaxPort.setPreferredPortName("/dev/ttyACM3");
         assertEquals("/dev/ttyACM3", PaxPort.discover());

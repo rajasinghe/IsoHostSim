@@ -145,14 +145,23 @@ public class BinRequest extends Utility {
 
             socket.setSoTimeout(1000);
 
+            // ISO8583Studio patch: the original always made one more read with a 1 s timeout here,
+            // so every BIN response came back ~1 s late. Skip it once a complete JSON object has
+            // arrived, and otherwise keep reading (1 s of silence ends it, as before) until it is
+            // complete. Encrypted (non-JSON) responses still get the original 1 s drain.
             try {
 
-                int d;
-                do {
-                    d = BinRequest.read();
-                    BinRequestStr += (char) d;
+                int d = 0;
+                while (!JsonFrame.isCompleteJson(BinRequestStr) && c != -1 && d != -1) {
+                    do {
+                        d = BinRequest.read();
+                        BinRequestStr += (char) d;
 
-                } while (BinRequest.available() > 0);
+                    } while (d != -1 && BinRequest.available() > 0);
+                    if (!BinRequestStr.trim().startsWith("{")) {
+                        break;   // encrypted response: one drain read, exactly like the original
+                    }
+                }
 
             } catch (Exception ex) {
 
@@ -495,27 +504,62 @@ public class BinRequest extends Utility {
         int y = 0;
         int numRead = 0;
 
-        while (check1 == false && y < intTo) {
+        // ISO8583Studio patch: the original read once a second and then always slept 1 s before
+        // looking at the data, adding 1-2 s to every BIN response. Now the port is polled every
+        // 100 ms, chunks are appended, and the loop ends as soon as a complete JSON object is in
+        // the buffer, or 1 s after the first data arrived (the original wait, used for encrypted
+        // or incomplete responses). The overall limit is still intTo seconds.
+        byte[] BinRequestChunk = new byte[2048];
+        int BinRequestTotal = 0;
+        int ticksSinceFirstData = -1;
+        final int ticksPerSecond = 10;
 
-            numRead = port.readBytes(BinRequestReadBuffer,
-                    BinRequestReadBuffer.length);
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
+        while (check1 == false && y < intTo * ticksPerSecond) {
+
+            numRead = port.readBytes(BinRequestChunk, BinRequestChunk.length);
+            if (numRead > 0) {
+                int copy = Math.min(numRead, BinRequestReadBuffer.length - BinRequestTotal);
+                System.arraycopy(BinRequestChunk, 0, BinRequestReadBuffer, BinRequestTotal, copy);
+                BinRequestTotal += copy;
             }
 
-            if (numRead > 10) {
+            if (BinRequestTotal > 10) {
+                String received = new String(BinRequestReadBuffer, 0, BinRequestTotal, java.nio.charset.StandardCharsets.UTF_8);
+
                 // a cancel running on another thread owns any ACK/NAK that lands here
-                if (PaxPort.isCancelReply(new String(BinRequestReadBuffer, java.nio.charset.StandardCharsets.UTF_8))) {
+                if (PaxPort.isCancelReply(received)) {
                     java.util.Arrays.fill(BinRequestReadBuffer, (byte) 0);
+                    BinRequestTotal = 0;
+                    ticksSinceFirstData = -1;
                     y++;
                     continue;
                 }
 
+                if (ticksSinceFirstData < 0) {
+                    ticksSinceFirstData = 0;
+                }
+                if (JsonFrame.isCompleteJson(received) || ticksSinceFirstData >= ticksPerSecond
+                        || BinRequestTotal >= BinRequestReadBuffer.length) {
+                    check1 = true;
+                }
+            }
+
+            if (!check1) {
+                try {
+                    Thread.sleep(1000 / ticksPerSecond);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                }
+                if (ticksSinceFirstData >= 0) {
+                    ticksSinceFirstData++;
+                }
+                y++;
+                continue;
+            }
+
+            {
                 //System.out.print("Read " + numRead + " bytes -");
-                check1 = true;
-                
+
                 if(isA920){
                     
                     JSONObject confirmResponse = new JSONObject();
@@ -540,7 +584,7 @@ public class BinRequest extends Utility {
             y++;
         }
 
-        if (y == intTo) {
+        if (!check1) {   // ISO8583Studio patch: was (y == intTo), which also flagged a response read on the last poll as a timeout
 
             LogWrite("NormalLog", "RequestBin_USB", "Terminal Response Timeout");
             JSONObject TimeOutError = new JSONObject();

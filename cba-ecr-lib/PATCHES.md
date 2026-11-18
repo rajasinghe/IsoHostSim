@@ -24,6 +24,43 @@ original code. Nothing in the wire protocol was touched.
   with no device the original threw a `NullPointerException` here, now it throws the intended
   `DeviceExceptions` code 15. (See "Known upstream issue" — this method is not reachable today.)
 
+## 1b. Reopen the USB port when the device changes
+
+- `PaxPort.acquire(comPort)`: the original reused the cached port whenever it reported
+  `isOpen()`, so after unplugging and plugging in a device that came back under a different
+  name (Linux `ttyACM0` → `ttyACM1` while the old handle is held; Windows a new COM number),
+  every command kept using the dead handle (NAK 17/18) until restart. Now the cached port is
+  reused only if `PortMatch.isSamePort(cached, discovered)`; otherwise the stale handle is
+  closed, cancel state is cleared, and the newly discovered port is opened.
+- `PortMatch.isSamePort(a, b)`: compares names ignoring `/dev/` and `\\.\` prefixes; an empty
+  or null discovered name counts as the same (a failed scan never drops an open port).
+- Same name, dead handle (seen on Linux: after a replug every write failed with "port appears to
+  have been shutdown or disconnected" until restart): the cached port is now also reused only if
+  `port.bytesAvailable() >= 0` (jSerialComm returns -1 for a dead handle) and it has not been
+  flagged with the new `PaxPort.markStale()`; otherwise it is closed and reopened.
+  ISO8583Studio's `EcrLibraryClient` calls `markStale()` after any USB NAK 17 (write failure) as
+  a backstop. Bytes sent to the terminal, timeouts and error codes are unchanged.
+
+## 1c. BIN response returns as soon as it is complete (`BinRequest.java`)
+
+- **New** `JsonFrame.isCompleteJson(String)`: pure check that the text received so far is one
+  complete JSON object (braces balanced outside strings, NUL/whitespace padding ignored).
+- `RequestBin_TCP`: the original always made one more read with a 1 s timeout after the
+  response, so every BIN result came back ~1 s late (measured 1003 ms → 2 ms on localhost).
+  That read is now skipped once the response is complete JSON; if it is incomplete, reading
+  continues until it is (1 s of silence still ends it). Encrypted (non-JSON) responses get the
+  original single 1 s drain.
+- `RequestBin_USB` final-response loop: the original polled once a second and always slept 1 s
+  after reading, adding 1–2 s. Now it polls every 100 ms, appends chunks, and stops when the
+  buffer holds complete JSON, or 1 s after the first data arrived (the original wait, used for
+  encrypted/incomplete data). The overall limit is still `intTo` seconds; the A920 `ack`
+  confirmation is sent right after the response instead of 1 s later.
+- Timeout check changed from `y == intTo` to `!check1`, so a response read on the last poll is
+  no longer reported as NAK 20.
+- Unchanged: commands sent, ACK handling, the `flushIOBuffers()` after the ACK, error codes.
+  The USB path has not been tested against a real terminal. Other request types (sale, void,
+  last, etc.) still have their original waits.
+
 ## 2. File paths
 
 - `Utility.java`: the five `"\\"` joins (log folder, daily log file, old-log delete, key file

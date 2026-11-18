@@ -44,7 +44,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -84,7 +86,11 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.isPrimaryPressed
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.text.selection.DisableSelection
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
@@ -161,7 +167,7 @@ fun LogcatTab(
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val palette = if (MaterialTheme.colors.isLight) LogcatPalette.Light else LogcatPalette.Dark
+    val palette = if (state.darkTheme) LogcatPalette.Dark else LogcatPalette.Light
     val cache = remember { LogcatRecordCache() }
 
     val source: List<LogEntry> = state.frozen ?: entries
@@ -195,7 +201,8 @@ fun LogcatTab(
     val options = RowOptions(
         compact = state.format == LogcatFormat.COMPACT,
         timestamp = state.format != LogcatFormat.CUSTOM || state.showTimestamp,
-        pidTid = state.format != LogcatFormat.CUSTOM || state.showPidTid,
+        // Process and thread ids are noise for most users, so only the Custom view can switch them on.
+        pidTid = state.format == LogcatFormat.CUSTOM && state.showPidTid,
         tag = state.format != LogcatFormat.CUSTOM || state.showTag,
         packageName = state.format != LogcatFormat.CUSTOM || state.showPackage,
         level = state.format != LogcatFormat.CUSTOM || state.showLevel,
@@ -210,7 +217,7 @@ fun LogcatTab(
     }
 
     Column(modifier.fillMaxSize().background(palette.background)) {
-        Header(palette, packageName, state, visible.size, records.size, bufferSize)
+        Header(palette, state, visible.size, records.size, bufferSize)
         Divider(color = palette.border, thickness = 1.dp)
         Row(Modifier.weight(1f)) {
             SideToolbar(
@@ -259,7 +266,6 @@ fun LogcatTab(
 @Composable
 private fun Header(
     palette: LogcatPalette,
-    packageName: String,
     state: LogcatState,
     shown: Int,
     total: Int,
@@ -278,17 +284,6 @@ private fun Header(
             contentAlignment = Alignment.Center,
         ) {
             Text("Logcat", color = palette.text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-        }
-        Spacer(Modifier.width(14.dp))
-        Row(
-            Modifier.height(24.dp).clip(RoundedCornerShape(4.dp))
-                .border(1.dp, palette.border, RoundedCornerShape(4.dp)).padding(start = 8.dp, end = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(Color(0xFF62B543)))
-            Spacer(Modifier.width(6.dp))
-            Text(packageName.ifBlank { "Host Simulator" }, color = palette.text, fontSize = 12.sp, maxLines = 1)
-            Icon(Icons.Default.ArrowDropDown, null, tint = palette.muted, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.weight(1f))
         if (state.paused) {
@@ -384,6 +379,11 @@ private fun SideToolbar(
         Box(Modifier.width(18.dp).height(1.dp).background(palette.border))
         Spacer(Modifier.height(4.dp))
         ToolButton(Icons.Default.Save, "Export Logcat…", palette, onClick = onExport)
+        ToolButton(
+            if (state.darkTheme) Icons.Default.LightMode else Icons.Default.DarkMode,
+            if (state.darkTheme) "Switch to light theme" else "Switch to dark theme",
+            palette,
+        ) { state.darkTheme = !state.darkTheme }
     }
 }
 
@@ -620,7 +620,8 @@ private fun LogList(
             .onPreviewKeyEvent { e ->
                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when {
-                    e.isCtrlPressed && e.key == Key.C -> { onCopy(selectedText()); true }
+                    // Whole lines selected: copy those. Otherwise leave Ctrl+C to the text selection in the list.
+                    e.isCtrlPressed && e.key == Key.C -> if (state.anchor >= 0) { onCopy(selectedText()); true } else false
                     e.isCtrlPressed && e.key == Key.A -> {
                         if (visible.isNotEmpty()) { state.anchor = 0; state.focus = visible.lastIndex }
                         true
@@ -654,7 +655,9 @@ private fun LogList(
                     timestamp = charWidth * 23 + pad,
                     pidTid = charWidth * (visible.maxOfOrNull { it.pidTid.length } ?: 7).coerceIn(5, 18) + pad,
                     tag = charWidth * (visible.maxOfOrNull { it.tag.length } ?: 8).coerceIn(6, 23) + pad,
-                    packageName = charWidth * packageName.length.coerceIn(4, 23) + pad,
+                    // Sized from the names actually on screen: a record can carry its own package, and real
+                    // Android package names are often longer than the viewer's default one.
+                    packageName = charWidth * (visible.maxOfOrNull { it.packageName.length } ?: packageName.length).coerceIn(4, 48) + pad,
                     compactTime = charWidth * 18 + pad,
                 )
             }
@@ -669,37 +672,42 @@ private fun LogList(
             val contentWidth = if (options.wrap) viewport else max(viewport.value, (prefixWidth + charWidth * longest + 32.dp).value).dp
 
             Box(Modifier.fillMaxSize().then(if (options.wrap) Modifier else Modifier.horizontalScroll(hScroll))) {
-                LazyColumn(Modifier.width(contentWidth).fillMaxHeight(), state = listState) {
-                    itemsIndexed(visible) { index, rec ->
-                        val lo = min(state.anchor, state.focus)
-                        val hi = max(state.anchor, state.focus)
-                        val isSelected = state.anchor >= 0 && index in lo..hi
-                        LogcatRow(
-                            rec = rec,
-                            selected = isSelected,
-                            palette = palette,
-                            options = options,
-                            columns = columns,
-                            highlights = highlights,
-                            onClick = { shift ->
-                                if (shift && state.anchor >= 0) state.focus = index
-                                else { state.anchor = index; state.focus = index }
-                                focusRequester.requestFocus()
-                            },
-                            menu = {
-                                val hereOrSelection = if (isSelected) selectedText() else rec.fullLine
-                                listOf(
-                                    ContextMenuItem("Copy") { onCopy(hereOrSelection) },
-                                    ContextMenuItem("Copy message") { onCopy(rec.message) },
-                                    ContextMenuItem("Show only tag '${rec.tag}'") { state.addTerm("tag:${quoteIfNeeded(rec.tag)}") },
-                                    ContextMenuItem("Hide tag '${rec.tag}'") { state.addTerm("-tag:${quoteIfNeeded(rec.tag)}") },
-                                    ContextMenuItem("Show ${rec.level.label} and above") { state.addTerm("level:${rec.level.label.uppercase()}") },
-                                    ContextMenuItem("Show only thread ${rec.tid}") { state.addTerm("thread:${rec.tid}") },
-                                    ContextMenuItem("Select all") { state.anchor = 0; state.focus = visible.lastIndex },
-                                    ContextMenuItem("Clear Logcat") { onClear() },
-                                )
-                            },
-                        )
+                // Lets the user drag across the log text and copy just that part with Ctrl+C.
+                SelectionContainer(Modifier.width(contentWidth).fillMaxHeight()) {
+                    LazyColumn(Modifier.fillMaxSize(), state = listState) {
+                        itemsIndexed(visible) { index, rec ->
+                            val lo = min(state.anchor, state.focus)
+                            val hi = max(state.anchor, state.focus)
+                            val isSelected = state.anchor >= 0 && index in lo..hi
+                            LogcatRow(
+                                rec = rec,
+                                selected = isSelected,
+                                palette = palette,
+                                options = options,
+                                columns = columns,
+                                highlights = highlights,
+                                onClick = { shift ->
+                                    if (shift && state.anchor >= 0) state.focus = index
+                                    else { state.anchor = index; state.focus = index }
+                                    focusRequester.requestFocus()
+                                },
+                                // Dragging selects text instead of lines, and must not be scrolled away by the tail.
+                                onDragStart = { state.clearSelection(); state.autoScroll = false },
+                                menu = {
+                                    val hereOrSelection = if (isSelected) selectedText() else rec.fullLine
+                                    listOf(
+                                        ContextMenuItem("Copy") { onCopy(hereOrSelection) },
+                                        ContextMenuItem("Copy message") { onCopy(rec.message) },
+                                        ContextMenuItem("Show only tag '${rec.tag}'") { state.addTerm("tag:${quoteIfNeeded(rec.tag)}") },
+                                        ContextMenuItem("Hide tag '${rec.tag}'") { state.addTerm("-tag:${quoteIfNeeded(rec.tag)}") },
+                                        ContextMenuItem("Show ${rec.level.label} and above") { state.addTerm("level:${rec.level.label.uppercase()}") },
+                                        ContextMenuItem("Show only thread ${rec.tid}") { state.addTerm("thread:${rec.tid}") },
+                                        ContextMenuItem("Select all") { state.anchor = 0; state.focus = visible.lastIndex },
+                                        ContextMenuItem("Clear Logcat") { onClear() },
+                                    )
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -724,6 +732,7 @@ private fun LogcatRow(
     columns: Columns,
     highlights: List<Regex>,
     onClick: (shift: Boolean) -> Unit,
+    onDragStart: () -> Unit,
     menu: () -> List<ContextMenuItem>,
 ) {
     val messageColor = palette.messageColor(rec.level)
@@ -734,13 +743,31 @@ private fun LogcatRow(
         Row(
             Modifier.fillMaxWidth()
                 .background(if (selected) palette.selection else Color.Transparent)
-                // Compose 1.8 has no shift-key query, so read it off the AWT event behind the press.
+                .pointerHoverIcon(PointerIcon.Text)
+                // A click selects the line; a drag is left to the text selection around the list. Compose 1.8
+                // has no shift-key query, so read it off the AWT event behind the release.
                 .pointerInput(Unit) {
                     awaitPointerEventScope {
+                        var down: Offset? = null
+                        var dragged = false
                         while (true) {
                             val e = awaitPointerEvent()
-                            if (e.type == PointerEventType.Press && e.buttons.isPrimaryPressed) {
-                                onClick((e.nativeEvent as? java.awt.event.MouseEvent)?.isShiftDown == true)
+                            val pos = e.changes.firstOrNull()?.position ?: continue
+                            when (e.type) {
+                                PointerEventType.Press -> if (e.buttons.isPrimaryPressed) { down = pos; dragged = false }
+                                PointerEventType.Move -> {
+                                    val start = down
+                                    if (start != null && !dragged && (pos - start).getDistance() > viewConfiguration.touchSlop) {
+                                        dragged = true
+                                        onDragStart()
+                                    }
+                                }
+                                PointerEventType.Release -> {
+                                    if (down != null && !dragged) {
+                                        onClick((e.nativeEvent as? java.awt.event.MouseEvent)?.isShiftDown == true)
+                                    }
+                                    down = null
+                                }
                             }
                         }
                     }
@@ -760,18 +787,20 @@ private fun LogcatRow(
                 if (options.timestamp) Cell(rec.dateTime, palette.muted, columns.timestamp)
                 if (options.pidTid) Cell(rec.pidTid, palette.muted, columns.pidTid)
                 if (options.tag) Cell(rec.tag, palette.tagColor(rec.tag), columns.tag)
-                if (options.packageName) Cell(rec.packageName, palette.muted, columns.packageName)
+                if (options.packageName) Cell(rec.packageName, palette.text, columns.packageName)
                 if (options.level) {
                     Box(Modifier.width(LevelWidth), contentAlignment = Alignment.CenterStart) {
                         Box(
                             Modifier.size(width = 16.dp, height = 15.dp).clip(RoundedCornerShape(3.dp)).background(palette.badgeColor(rec.level)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text(
-                                rec.level.letter.toString(),
-                                color = palette.badgeTextColor(rec.level),
-                                fontFamily = Mono, fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                            )
+                            DisableSelection {
+                                Text(
+                                    rec.level.letter.toString(),
+                                    color = palette.badgeTextColor(rec.level),
+                                    fontFamily = Mono, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                                )
+                            }
                         }
                     }
                 }
