@@ -1,6 +1,5 @@
 package lk.cba.isohostsim.ui
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material.LocalContentColor
 import androidx.compose.material.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -21,25 +20,9 @@ private val DesktopToolLogPanel = ToolLogPanel { label, onClear, entries ->
     SimulatorLogPanel(label = label, onClearClick = onClear, logEntries = entries)
 }
 
-/**
- * Detect system dark mode. Uses Compose's isSystemInDarkTheme() first,
- * then falls back to Windows registry check on Windows.
- */
+/** Light by default, whatever the operating system's theme. Pass true to render the dark theme. */
 @Composable
-private fun detectDarkTheme(): Boolean {
-    val composeDark = isSystemInDarkTheme()
-    if (composeDark) return true
-    // Fallback: check Windows registry (cached)
-    return windowsDarkModeCache
-}
-
-/** Cached Windows dark mode detection — checked once at startup */
-private val windowsDarkModeCache: Boolean by lazy {
-    detectWindowsDarkMode() ?: false
-}
-
-@Composable
-fun AppTheme(darkTheme: Boolean = detectDarkTheme(), content: @Composable () -> Unit) {
+fun AppTheme(darkTheme: Boolean = false, content: @Composable () -> Unit) {
     val glassActive by isGlassEffectActive
 
     val colors = when {

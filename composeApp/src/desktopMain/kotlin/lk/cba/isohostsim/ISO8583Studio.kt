@@ -66,10 +66,8 @@ import lk.cba.isohostsim.ui.MenuBarItem
 import lk.cba.isohostsim.ui.MenuBarMenu
 import lk.cba.isohostsim.ui.MenuBarSeparator
 import lk.cba.isohostsim.ui.MenuBarSubMenu
-import lk.cba.isohostsim.ui.detectWindowsDarkMode
 import java.awt.Desktop
 import java.awt.desktop.AboutHandler
-import androidx.compose.foundation.isSystemInDarkTheme
 
 enum class DialogType {
     SUCCESS, ERROR, NONE
@@ -122,13 +120,9 @@ class ISO8583Studio {
                 }
             }
 
-            // Detect OS dark mode (registry fallback for Windows)
-            val osDarkMode = remember {
-                detectWindowsDarkMode() ?: false
-            }
-
             AppTheme {
-                val isDark = isSystemInDarkTheme() || osDarkMode
+                // The app is always light; it doesn't follow the operating system's theme.
+                val isDark = false
                 Window(
                     onCloseRequest = ::exitApplication,
                     title = "POS Testing Platform",
