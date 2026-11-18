@@ -8,6 +8,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,6 +39,9 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -67,6 +72,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import lk.cba.isohostsim.domain.service.parser.IsoPacketDecoder
 import lk.cba.isohostsim.domain.service.remoteHost.FilterPreset
+import lk.cba.isohostsim.domain.service.remoteHost.DEFAULT_OVERRIDE_PRESETS
+import lk.cba.isohostsim.domain.service.remoteHost.OverridePreset
 import lk.cba.isohostsim.domain.service.remoteHost.OverrideRequest
 import lk.cba.isohostsim.domain.service.remoteHost.RemoteConnection
 import lk.cba.isohostsim.domain.service.remoteHost.RemoteHealth
@@ -238,7 +245,14 @@ fun RemoteHostScreen() {
             RemoteTab.TRANSACTIONS -> transactionsTab(client)
             RemoteTab.LOGS -> logsTab(client)
             RemoteTab.OVERRIDES -> item {
-                OverridesTab(client, applied, settings.myName) { persist(settings.copy(myName = it)) }
+                OverridesTab(
+                    client,
+                    applied,
+                    settings.myName,
+                    settings.overridePresets,
+                    onMyName = { persist(settings.copy(myName = it)) },
+                    onPresets = { persist(settings.copy(overridePresets = it)) },
+                )
             }
             RemoteTab.CONFIG -> item { HostConfigTab(client) }
         }
@@ -713,36 +727,119 @@ private const val ALL_TERMINALS = "*"
 
 private enum class OverrideKind(val label: String) { DECLINE("Decline"), NO_RESPONSE("No response"), DELAY("Delay only") }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun OverridesTab(client: RemoteHostClient, filter: TerminalFilter, myName: String, onMyName: (String) -> Unit) {
+private fun OverridesTab(
+    client: RemoteHostClient,
+    filter: TerminalFilter,
+    myName: String,
+    presets: List<OverridePreset>,
+    onMyName: (String) -> Unit,
+    onPresets: (List<OverridePreset>) -> Unit,
+) {
     val overrides by client.overrides.collectAsState()
     val scope = rememberCoroutineScope()
     var tid by remember(filter.tid) { mutableStateOf(filter.tid) }
-    var kind by remember { mutableStateOf(OverrideKind.DECLINE) }
-    var code by remember { mutableStateOf("05") }
-    var delay by remember { mutableStateOf("") }
     var minutes by remember { mutableStateOf("120") }
-    var note by remember { mutableStateOf("") }
     var name by remember(myName) { mutableStateOf(myName) }
     var message by remember { mutableStateOf<Pair<String, Tone>?>(null) }
-    var settleBusy by remember { mutableStateOf(false) }
+    var busy by remember { mutableStateOf(false) }
+    var custom by remember { mutableStateOf(false) }
     var settleMessage by remember { mutableStateOf<Pair<String, Tone>?>(null) }
+    val terminal = tid.trim()
     // With no Terminal ID the settlement reject applies to every terminal on the host ("*").
-    val settleTarget = tid.trim().ifBlank { ALL_TERMINALS }
+    val settleTarget = terminal.ifBlank { ALL_TERMINALS }
     val settleReject = overrides.find { it.kind == "rejectSettlement" && it.tid == settleTarget }
-    val settleRejectAll = overrides.find { it.kind == "rejectSettlement" && it.tid == ALL_TERMINALS }
+    val settleRejectAll = overrides.find { it.kind == "rejectSettlement" && it.tid == ALL_TERMINALS && !it.paused }
+    val current = if (terminal.isEmpty()) null else overrides.find { it.kind == "general" && it.tid == terminal }
+    val setBy = name.trim().ifBlank { null }
+
+    /** Runs one call to the host; a failure shows under the card it came from. */
+    fun run(onError: (String) -> Unit, action: suspend () -> Unit) {
+        busy = true
+        message = null
+        settleMessage = null
+        if (name.trim() != myName) onMyName(name.trim())
+        scope.launch {
+            try {
+                action()
+            } catch (e: Exception) {
+                onError("The host didn't accept that: ${e.message}")
+            } finally {
+                busy = false
+            }
+        }
+    }
+    val showError: (String) -> Unit = { message = it to Tone.Danger }
+    fun apply(p: OverridePreset) = run(showError) { client.setOverride(p.toRequest(terminal, setBy, minutes.toIntOrNull())) }
+    fun togglePause(o: RemoteOverride, onError: (String) -> Unit = showError) = run(onError) { client.pauseOverride(o.id, !o.paused, setBy) }
+    fun remove(o: RemoteOverride) = run(showError) { client.deleteOverride(o.id) }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         PosCard(Modifier.fillMaxWidth(), padding = 16.dp) {
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 LabeledField("Terminal ID", tid, { tid = it }, Modifier.width(180.dp))
                 LabeledField("Your name", name, { name = it }, Modifier.width(180.dp))
+                LabeledField("Lasts (minutes)", minutes, { minutes = it.filter(Char::isDigit).take(4) }, Modifier.width(130.dp))
                 Text(
-                    "Leave it empty to reject settlements from every terminal. The overrides further down need a Terminal ID.",
+                    "Leave the Terminal ID empty to reject settlements from every terminal. Declines, no response and delays need one.",
                     fontSize = 13.sp,
                     color = posMuted(),
                     modifier = Modifier.padding(bottom = 14.dp),
                 )
+            }
+        }
+
+        PosCard(Modifier.fillMaxWidth(), padding = 16.dp) {
+            SectionTitle(
+                "Decline, no response or delay",
+                "Click one to apply it to every reply this terminal gets, replacing its current one. " +
+                    "Click it again to pause it: the terminal gets normal replies until you resume.",
+            )
+            Spacer(Modifier.height(12.dp))
+            if (terminal.isEmpty()) {
+                NoteBox("Enter a Terminal ID above to use these.", Tone.Warning)
+            } else {
+                CurrentOverride(terminal, current, busy, onPause = { togglePause(it) }, onRemove = { remove(it) })
+            }
+            Spacer(Modifier.height(12.dp))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                presets.forEach { p ->
+                    val on = current != null && p.matches(current)
+                    OverridePresetChip(
+                        p,
+                        state = when {
+                            !on -> PresetState.Off
+                            current!!.paused -> PresetState.Paused
+                            else -> PresetState.On
+                        },
+                        enabled = terminal.isNotEmpty() && !busy,
+                        onClick = { if (on) togglePause(current!!) else apply(p) },
+                        onDelete = { onPresets(presets - p) },
+                    )
+                }
+                PosButton(
+                    if (custom) "Hide custom" else "Custom…",
+                    { custom = !custom },
+                    kind = PosButtonKind.Secondary,
+                    icon = if (custom) Icons.Default.Close else Icons.Default.Tune,
+                )
+            }
+            if (custom) {
+                Spacer(Modifier.height(16.dp))
+                Divider()
+                Spacer(Modifier.height(16.dp))
+                CustomOverrideForm(
+                    canSet = terminal.isNotEmpty() && !busy,
+                    missingDefaults = DEFAULT_OVERRIDE_PRESETS.filterNot { d -> presets.any { it.name == d.name } },
+                    onSet = ::apply,
+                    onSave = { p -> onPresets(presets.filterNot { it.name.equals(p.name, true) } + p) },
+                    onRestore = { onPresets(presets + it) },
+                )
+            }
+            message?.let { (text, tone) ->
+                Spacer(Modifier.height(10.dp))
+                NoteBox(text, tone)
             }
         }
 
@@ -756,7 +853,11 @@ private fun OverridesTab(client: RemoteHostClient, filter: TerminalFilter, myNam
                     )
                     settleReject?.let {
                         Text(
-                            listOfNotNull(it.setBy?.let { by -> "On, set by $by" } ?: "On", "until ${dateTime(it.expiresAt)}").joinToString(" · "),
+                            listOfNotNull(
+                                if (it.paused) "Paused" else "On",
+                                it.setBy?.let { by -> "set by $by" },
+                                "until ${dateTime(it.expiresAt)}",
+                            ).joinToString(" · "),
                             fontSize = 13.sp,
                             color = posMuted(),
                             modifier = Modifier.padding(top = 6.dp),
@@ -765,31 +866,18 @@ private fun OverridesTab(client: RemoteHostClient, filter: TerminalFilter, myNam
                 }
                 Spacer(Modifier.width(16.dp))
                 Switch(
-                    checked = settleReject != null,
-                    enabled = !settleBusy,
+                    checked = settleReject != null && !settleReject.paused,
+                    enabled = !busy,
                     onCheckedChange = { on ->
-                        settleBusy = true
-                        settleMessage = null
-                        if (name != myName) onMyName(name.trim())
-                        scope.launch {
-                            try {
-                                if (on) {
-                                    client.setOverride(
-                                        OverrideRequest(
-                                            tid = settleTarget,
-                                            kind = "rejectSettlement",
-                                            setBy = name.trim().ifBlank { null },
-                                            minutes = minutes.toIntOrNull(),
-                                        ),
-                                    )
-                                } else {
-                                    settleReject?.let { client.deleteOverride(it.id) }
-                                }
-                            } catch (e: Exception) {
-                                settleMessage = "Could not change the settlement setting: ${e.message}" to Tone.Danger
-                            } finally {
-                                settleBusy = false
+                        val onError: (String) -> Unit = { settleMessage = it to Tone.Danger }
+                        when {
+                            on && settleReject?.paused == true -> togglePause(settleReject, onError)
+                            on -> run(onError) {
+                                client.setOverride(
+                                    OverrideRequest(tid = settleTarget, kind = "rejectSettlement", setBy = setBy, minutes = minutes.toIntOrNull()),
+                                )
                             }
+                            else -> settleReject?.let { o -> run(onError) { client.deleteOverride(o.id) } }
                         }
                     },
                 )
@@ -814,79 +902,207 @@ private fun OverridesTab(client: RemoteHostClient, filter: TerminalFilter, myNam
             }
         }
 
-        PosCard(Modifier.fillMaxWidth(), padding = 16.dp) {
-            SectionTitle(
-                "Override every reply",
-                "Changes all of this terminal's replies, on top of the host config. Setting a new one replaces the old one.",
-            )
-            Spacer(Modifier.height(12.dp))
-            SegmentedChoice(OverrideKind.entries.toList(), kind, { it.label }, { kind = it })
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (kind == OverrideKind.DECLINE) LabeledField("Response code (F39)", code, { code = it.take(2) }, Modifier.width(160.dp))
-                if (kind != OverrideKind.NO_RESPONSE) {
-                    LabeledField(if (kind == OverrideKind.DELAY) "Delay (seconds)" else "Delay (optional)", delay, { delay = it.filter(Char::isDigit).take(3) }, Modifier.width(140.dp))
-                }
-                LabeledField("Lasts (minutes)", minutes, { minutes = it.filter(Char::isDigit).take(4) }, Modifier.width(130.dp))
-                LabeledField("Note", note, { note = it }, Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(12.dp))
-            PosButton("Set override", {
-                message = null
-                if (name != myName) onMyName(name.trim())
-                val request = OverrideRequest(
-                    tid = tid.trim(),
-                    responseCode = code.trim().takeIf { kind == OverrideKind.DECLINE },
-                    delaySeconds = delay.toIntOrNull()?.takeIf { it > 0 && kind != OverrideKind.NO_RESPONSE },
-                    noResponse = true.takeIf { kind == OverrideKind.NO_RESPONSE },
-                    setBy = name.trim().ifBlank { null },
-                    note = note.trim().ifBlank { null },
-                    minutes = minutes.toIntOrNull(),
-                )
-                scope.launch {
-                    message = try {
-                        val o = client.setOverride(request)
-                        "Override set for ${o.tid} until ${dateTime(o.expiresAt)}." to Tone.Success
-                    } catch (e: Exception) {
-                        "Could not set the override: ${e.message}" to Tone.Danger
-                    }
-                }
-            }, enabled = tid.isNotBlank() && (kind != OverrideKind.DECLINE || code.length == 2) && (kind != OverrideKind.DELAY || (delay.toIntOrNull() ?: 0) > 0))
-            message?.let { (text, tone) ->
-                Spacer(Modifier.height(10.dp))
-                NoteBox(text, tone)
-            }
-        }
-
-        SectionTitle("Active overrides", "Every tester on this host sees these. Remove yours when you're done.")
+        SectionTitle("Active overrides", "Every tester on this host sees these. Pause or remove yours when you're done.")
         if (overrides.isEmpty()) {
             NoteBox("No overrides are active. Every terminal gets the host config's normal replies.")
         } else {
             PosCard(Modifier.fillMaxWidth(), padding = 0.dp) {
                 overrides.forEachIndexed { i, o ->
                     if (i > 0) Divider()
-                    OverrideRow(o, mine = o.setBy != null && o.setBy == myName, highlighted = o.tid == filter.tid) {
-                        scope.launch {
-                            runCatching { client.deleteOverride(o.id) }.onFailure {
-                                message = "Could not remove the override: ${it.message}" to Tone.Danger
-                            }
-                        }
-                    }
+                    OverrideRow(
+                        o,
+                        mine = o.setBy != null && o.setBy == myName,
+                        highlighted = o.tid == filter.tid,
+                        busy = busy,
+                        onPause = { togglePause(o) },
+                        onRemove = { remove(o) },
+                    )
                 }
             }
         }
     }
 }
 
-private fun describe(o: RemoteOverride): String = buildList {
-    if (o.kind == "rejectSettlement") add("Settlement rejected with 95 (batch upload)")
-    if (o.noResponse == true) add("No response")
-    o.responseCode?.let { add("Decline with F39 $it") }
-    o.delaySeconds?.let { add("${it}s delay") }
-}.joinToString(", ")
+/** What the terminal on the Overrides tab gets now, with Pause/Resume and Remove. */
+@Composable
+private fun CurrentOverride(terminal: String, o: RemoteOverride?, busy: Boolean, onPause: (RemoteOverride) -> Unit, onRemove: (RemoteOverride) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(posSunken()).padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (o == null) {
+            StatusChip("Normal", Tone.Neutral)
+            Text("Terminal $terminal gets the host config's normal replies.", fontSize = 14.sp, modifier = Modifier.weight(1f))
+            return@Row
+        }
+        if (o.paused) StatusChip("Paused", Tone.Warning) else StatusChip("On", Tone.Danger, showDot = true)
+        Column(Modifier.weight(1f)) {
+            Text(
+                (o.note?.let { "$it: " } ?: "") + describe(o) + if (o.paused) " (paused, normal replies for now)" else "",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(overrideMeta(o), fontSize = 13.sp, color = posMuted())
+        }
+        PauseButton(o, busy, onPause)
+        PosButton("Remove", { onRemove(o) }, kind = PosButtonKind.Danger, enabled = !busy)
+    }
+}
 
 @Composable
-private fun OverrideRow(o: RemoteOverride, mine: Boolean, highlighted: Boolean, onRemove: () -> Unit) {
+private fun PauseButton(o: RemoteOverride, busy: Boolean, onPause: (RemoteOverride) -> Unit) {
+    PosButton(
+        if (o.paused) "Resume" else "Pause",
+        { onPause(o) },
+        kind = PosButtonKind.Secondary,
+        enabled = !busy,
+        icon = if (o.paused) Icons.Default.PlayArrow else Icons.Default.Pause,
+    )
+}
+
+private enum class PresetState { Off, On, Paused }
+
+@Composable
+private fun OverridePresetChip(p: OverridePreset, state: PresetState, enabled: Boolean, onClick: () -> Unit, onDelete: () -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
+    val accent = when (state) {
+        PresetState.On -> MaterialTheme.colors.primary
+        PresetState.Paused -> MaterialTheme.colors.onSurface.copy(alpha = 0.55f)
+        PresetState.Off -> null
+    }
+    Row(
+        Modifier.clip(shape)
+            .background(if (state == PresetState.On) MaterialTheme.colors.primary.copy(alpha = 0.14f) else posSunken())
+            .border(1.dp, accent ?: posLine(), shape)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (state != PresetState.Off) {
+            Icon(
+                if (state == PresetState.On) Icons.Default.Pause else Icons.Default.PlayArrow,
+                contentDescription = null,
+                tint = accent!!,
+                modifier = Modifier.width(16.dp).height(16.dp),
+            )
+            Spacer(Modifier.width(6.dp))
+        }
+        Column {
+            Text(
+                p.name,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                color = when {
+                    !enabled -> posMuted()
+                    state == PresetState.On -> MaterialTheme.colors.primary
+                    else -> MaterialTheme.colors.onSurface
+                },
+            )
+            Text(
+                when (state) {
+                    PresetState.On -> "On · click to pause"
+                    PresetState.Paused -> "Paused · click to resume"
+                    PresetState.Off -> p.detail
+                },
+                fontSize = 11.sp,
+                fontFamily = if (state == PresetState.Off) FontFamily.Monospace else FontFamily.Default,
+                color = posMuted(),
+            )
+        }
+        Spacer(Modifier.width(6.dp))
+        Box(Modifier.clip(RoundedCornerShape(12.dp)).clickable(onClick = onDelete).padding(4.dp)) {
+            Icon(Icons.Default.Close, contentDescription = "Remove preset ${p.name}", tint = posMuted(), modifier = Modifier.width(16.dp).height(16.dp))
+        }
+    }
+}
+
+/** Any code, no response or delay. "Save as preset" adds it as a chip under the name given. */
+@Composable
+private fun CustomOverrideForm(
+    canSet: Boolean,
+    missingDefaults: List<OverridePreset>,
+    onSet: (OverridePreset) -> Unit,
+    onSave: (OverridePreset) -> Unit,
+    onRestore: (List<OverridePreset>) -> Unit,
+) {
+    var kind by remember { mutableStateOf(OverrideKind.DECLINE) }
+    var code by remember { mutableStateOf("05") }
+    var delay by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("") }
+    val delaySeconds = delay.toIntOrNull()?.takeIf { it > 0 }
+    val valid = (kind != OverrideKind.DECLINE || code.trim().length == 2) && (kind != OverrideKind.DELAY || delaySeconds != null)
+    fun preset(fallbackName: String) = OverridePreset(
+        name = name.trim().ifBlank { fallbackName },
+        responseCode = code.trim().takeIf { kind == OverrideKind.DECLINE },
+        delaySeconds = delaySeconds.takeIf { kind != OverrideKind.NO_RESPONSE },
+        noResponse = kind == OverrideKind.NO_RESPONSE,
+    )
+
+    SegmentedChoice(OverrideKind.entries.toList(), kind, { it.label }, { kind = it })
+    Spacer(Modifier.height(12.dp))
+    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (kind == OverrideKind.DECLINE) LabeledField("Response code (F39)", code, { code = it.take(2) }, Modifier.width(160.dp))
+        if (kind != OverrideKind.NO_RESPONSE) {
+            LabeledField(
+                if (kind == OverrideKind.DELAY) "Delay (seconds)" else "Delay (optional)",
+                delay,
+                { delay = it.filter(Char::isDigit).take(3) },
+                Modifier.width(140.dp),
+            )
+        }
+        LabeledField("Name", name, { name = it.take(30) }, Modifier.width(220.dp))
+        PosButton("Set override", { onSet(preset("")) }, enabled = canSet && valid)
+        PosButton(
+            "Save as preset",
+            {
+                onSave(preset(""))
+                name = ""
+            },
+            kind = PosButtonKind.Secondary,
+            enabled = valid && name.isNotBlank(),
+            icon = Icons.Default.BookmarkAdd,
+        )
+    }
+    Spacer(Modifier.height(8.dp))
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            "The name shows on the override so other testers know what it is for, and labels the preset.",
+            fontSize = 13.sp,
+            color = posMuted(),
+            modifier = Modifier.weight(1f),
+        )
+        if (missingDefaults.isNotEmpty()) {
+            PosButton("Restore default presets", { onRestore(missingDefaults) }, kind = PosButtonKind.Secondary)
+        }
+    }
+}
+
+private fun describe(o: RemoteOverride): String = when {
+    o.kind == "rejectSettlement" -> "Settlement rejected with 95 (batch upload)"
+    o.noResponse == true -> "No response"
+    o.responseCode != null -> "Decline with F39 ${o.responseCode}" + (o.delaySeconds?.let { " after ${it}s" } ?: "")
+    o.delaySeconds != null -> "Normal reply after ${o.delaySeconds}s"
+    else -> "Normal reply"
+}
+
+private fun overrideMeta(o: RemoteOverride): String = listOfNotNull(
+    o.setBy?.let { "Set by $it" },
+    o.pausedChangedAt?.let { at ->
+        (if (o.paused) "paused" else "resumed") + (o.pausedChangedBy?.let { " by $it" } ?: "") + " at ${dateTime(at)}"
+    },
+    "until ${dateTime(o.expiresAt)}",
+).joinToString(" · ")
+
+@Composable
+private fun OverrideRow(
+    o: RemoteOverride,
+    mine: Boolean,
+    highlighted: Boolean,
+    busy: Boolean,
+    onPause: () -> Unit,
+    onRemove: () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().background(if (highlighted) posSunken() else MaterialTheme.colors.surface).padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -900,15 +1116,13 @@ private fun OverrideRow(o: RemoteOverride, mine: Boolean, highlighted: Boolean, 
             fontWeight = FontWeight.Medium,
         )
         Column(Modifier.weight(1f)) {
-            Text(describe(o), fontSize = 14.sp)
-            Text(
-                listOfNotNull(o.setBy?.let { "Set by $it" }, o.note, "until ${dateTime(o.expiresAt)}").joinToString(" · "),
-                fontSize = 13.sp,
-                color = posMuted(),
-            )
+            Text((o.note?.takeIf { o.kind == "general" }?.let { "$it: " } ?: "") + describe(o), fontSize = 14.sp)
+            Text(overrideMeta(o), fontSize = 13.sp, color = posMuted())
         }
+        if (o.paused) StatusChip("Paused", Tone.Warning)
         if (mine) StatusChip("Yours", Tone.Accent)
-        PosButton("Remove", onRemove, kind = PosButtonKind.Danger)
+        PauseButton(o, busy) { onPause() }
+        PosButton("Remove", onRemove, kind = PosButtonKind.Danger, enabled = !busy)
     }
 }
 

@@ -57,6 +57,18 @@ class RemoteHostScreenPreviewTest {
                 for (tab in listOf("Logs", "Overrides", "Host config")) {
                     onAllNodes(hasText(tab))[0].performClick()
                     shot(tab.lowercase().replace(' ', '-'))
+                    if (tab == "Overrides") {
+                        // One click applies a preset; a second click on it pauses it.
+                        onAllNodes(hasText("Insufficient funds"))[0].performClick()
+                        waitUntil(timeoutMillis = 5_000) { onAllNodes(hasText("On · click to pause")).fetchSemanticsNodes().isNotEmpty() }
+                        shot("override-on")
+                        onAllNodes(hasText("Insufficient funds"))[0].performClick()
+                        waitUntil(timeoutMillis = 5_000) { onAllNodes(hasText("Paused · click to resume")).fetchSemanticsNodes().isNotEmpty() }
+                        onAllNodes(hasText("Custom…"))[0].performClick()
+                        shot("override-paused")
+                        onAllNodes(hasText("Remove"))[0].performClick()
+                        waitUntil(timeoutMillis = 5_000) { onAllNodes(hasText("No overrides are active", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+                    }
                 }
                 // One click on a preset switches the view to that terminal.
                 onAllNodes(hasText("Second terminal"))[0].performClick()

@@ -11,6 +11,7 @@ import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
+import io.ktor.client.request.patch
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
@@ -223,6 +224,16 @@ class RemoteHostClient(baseUrl: String) {
         })
         refreshOverrides()
         return created
+    }
+
+    /** Pauses or resumes an override; a paused one stays listed but the terminal gets normal replies. */
+    suspend fun pauseOverride(id: String, paused: Boolean, by: String? = null): RemoteOverride {
+        val updated: RemoteOverride = ok(http.patch("$baseUrl/api/overrides/$id") {
+            contentType(ContentType.Application.Json)
+            setBody(PauseRequest(paused, by))
+        })
+        refreshOverrides()
+        return updated
     }
 
     suspend fun deleteOverride(id: String) {

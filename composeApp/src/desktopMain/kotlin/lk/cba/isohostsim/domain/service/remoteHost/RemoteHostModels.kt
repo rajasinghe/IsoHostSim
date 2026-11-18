@@ -77,9 +77,16 @@ data class RemoteOverride(
     val noResponse: Boolean? = null,
     val setBy: String? = null,
     val note: String? = null,
+    /** Kept on the host but not applied: the terminal gets normal replies until it is resumed. */
+    val paused: Boolean = false,
+    val pausedChangedAt: String? = null,
+    val pausedChangedBy: String? = null,
     val createdAt: String,
     val expiresAt: String,
 )
+
+@Serializable
+data class PauseRequest(val paused: Boolean, val by: String? = null)
 
 @Serializable
 data class OverrideRequest(
@@ -155,6 +162,52 @@ data class RemoteHostSettings(
     val lastMid: String = "",
     /** Saved terminal filters, so a tester can switch between their terminals with one click. */
     val presets: List<FilterPreset> = emptyList(),
+    /** One-click overrides (decline, no response, delay). Starts with a few common ones. */
+    val overridePresets: List<OverridePreset> = DEFAULT_OVERRIDE_PRESETS,
+)
+
+/**
+ * A saved override: a decline code, no response, a delay, or a decline after a delay. Applying it
+ * sets it for the terminal on the Overrides tab, replacing that terminal's current override.
+ */
+@Serializable
+data class OverridePreset(
+    val name: String,
+    val responseCode: String? = null,
+    val delaySeconds: Int? = null,
+    val noResponse: Boolean = false,
+) {
+    /** What it does, e.g. "F39 51 after 10s". */
+    val detail: String
+        get() = when {
+            noResponse -> "No reply"
+            responseCode != null && delaySeconds != null -> "F39 $responseCode after ${delaySeconds}s"
+            responseCode != null -> "F39 $responseCode"
+            else -> "Normal reply after ${delaySeconds}s"
+        }
+
+    fun matches(o: RemoteOverride): Boolean =
+        o.kind == "general" && (o.noResponse == true) == noResponse && o.responseCode == responseCode &&
+            (o.delaySeconds ?: 0) == (delaySeconds ?: 0)
+
+    fun toRequest(tid: String, setBy: String?, minutes: Int?): OverrideRequest = OverrideRequest(
+        tid = tid,
+        responseCode = responseCode?.takeIf { !noResponse },
+        delaySeconds = delaySeconds?.takeIf { it > 0 && !noResponse },
+        noResponse = true.takeIf { noResponse },
+        setBy = setBy,
+        note = name.trim().ifBlank { null },
+        minutes = minutes,
+    )
+}
+
+val DEFAULT_OVERRIDE_PRESETS = listOf(
+    OverridePreset("Do not honour", responseCode = "05"),
+    OverridePreset("Insufficient funds", responseCode = "51"),
+    OverridePreset("Wrong PIN", responseCode = "55"),
+    OverridePreset("Issuer unavailable", responseCode = "91"),
+    OverridePreset("No response", noResponse = true),
+    OverridePreset("Slow reply", delaySeconds = 10),
 )
 
 /** A named TID and MID pair. Either may be blank, meaning "any". */
