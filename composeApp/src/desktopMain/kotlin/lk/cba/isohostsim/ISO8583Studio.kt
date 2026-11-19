@@ -58,6 +58,9 @@ import lk.cba.isohostsim.data.model.StudioTool
 import iso8583studio.composeapp.generated.resources.Res
 import iso8583studio.composeapp.generated.resources.app
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay //gimhan added
+import lk.cba.isohostsim.update.UpdateController //gimhan added
+import lk.cba.isohostsim.update.UpdatePrompt //gimhan added
 import org.jetbrains.compose.resources.painterResource
 import lk.cba.isohostsim.ui.GlassBackdrop
 import lk.cba.isohostsim.ui.GlassWindowEffect
@@ -143,6 +146,15 @@ class ISO8583Studio {
                         if (showAboutDialog) {
                             AboutDialog(onCloseRequest = { showAboutDialog = false })
                         }
+
+                        // ─── In-app updates ──────────────────────────── //gimhan added
+                        // Checks the update share shortly after start-up; offers to install a newer
+                        // version, which closes the app, runs the installer and reopens it.
+                        LaunchedEffect(Unit) {
+                            delay(3_000)
+                            UpdateController.check(this, userInitiated = false)
+                        }
+                        UpdatePrompt(exitApp = ::exitApplication)
 
                         // ─── Analytics Consent (first run only) ─────────
                         // Asked once. Nothing has been transmitted at this point: StudioAnalytics.init()

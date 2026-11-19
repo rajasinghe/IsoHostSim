@@ -1,0 +1,4 @@
+# Shell scripts run on Linux (the update server, gradlew); keep LF even on Windows checkouts. //gimhan added
+*.sh text eol=lf
+gradlew text eol=lf
+*.bat text eol=crlf

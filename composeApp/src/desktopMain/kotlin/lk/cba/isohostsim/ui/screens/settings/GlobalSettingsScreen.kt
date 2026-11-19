@@ -18,6 +18,8 @@ import lk.cba.isohostsim.ui.screens.components.AppBarWithBack
 import lk.cba.isohostsim.ui.screens.components.Panel
 import lk.cba.isohostsim.ui.screens.components.SectionHeader
 import lk.cba.isohostsim.ui.screens.components.StyledTextField
+import lk.cba.isohostsim.BuildInfo //gimhan added
+import lk.cba.isohostsim.update.UpdateStatusRow //gimhan added
 
 @Composable
 fun GlobalSettingsScreen(onBack: () -> Unit) {
@@ -254,6 +256,43 @@ fun GlobalSettingsScreen(onBack: () -> Unit) {
                             }
                         }
                     }
+                }
+            }
+
+            // Updates section //gimhan added
+            Panel(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    SectionHeader(title = "Updates")
+
+                    Text(
+                        "New versions are published to the update server. The app checks it " +
+                                "at start-up and offers to install anything newer.",
+                        style = MaterialTheme.typography.body2,
+                        color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f)
+                    )
+
+                    Divider(color = MaterialTheme.colors.onSurface.copy(alpha = 0.1f))
+
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Update location", fontWeight = FontWeight.Medium)
+                        Text(
+                            "An https address such as https://updates.example.com/iso8583studio, or a folder. " +
+                                    "Leave blank to use the built-in location" +
+                                    (BuildInfo.UPDATE_SOURCE.takeIf { it.isNotBlank() }?.let { " ($it)." } ?: "."),
+                            style = MaterialTheme.typography.caption,
+                            color = MaterialTheme.colors.onSurface.copy(alpha = 0.6f)
+                        )
+                        StyledTextField(
+                            value = AppSettings.updateSource,
+                            onValueChange = { AppSettings.updateUpdateSource(it) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    UpdateStatusRow(modifier = Modifier.fillMaxWidth())
                 }
             }
 

@@ -25,7 +25,9 @@ private data class AppSettingsData(
     /** Random, regenerable device identifier used as the GA4 user_id. Not derived from any hardware ID. */
     val analyticsClientId: String = "",
     val installDate: String = "",
-    val launchCount: Int = 0
+    val launchCount: Int = 0,
+    /** Folder or URL holding latest.json; blank means use the build's default. //gimhan added */
+    val updateSource: String = "",
 )
 
 /**
@@ -70,8 +72,18 @@ object AppSettings {
     private var _launchCount by mutableStateOf(0)
     val launchCount: Int get() = _launchCount
 
+    //gimhan added — where in-app updates come from (see lk.cba.isohostsim.update.UpdateService).
+    private var _updateSource by mutableStateOf("")
+    val updateSource: String get() = _updateSource
+
     init {
         load()
+    }
+
+    //gimhan added
+    fun updateUpdateSource(value: String) {
+        _updateSource = value
+        persistAsync()
     }
 
     fun updateEnableGlobalLogging(value: Boolean) {
@@ -146,6 +158,7 @@ object AppSettings {
             _analyticsClientId = data.analyticsClientId
             _installDate = data.installDate
             _launchCount = data.launchCount
+            _updateSource = data.updateSource //gimhan added
         } catch (_: Exception) { }
     }
 
@@ -162,7 +175,8 @@ object AppSettings {
                     analyticsConsent = _analyticsConsent.name,
                     analyticsClientId = _analyticsClientId,
                     installDate = _installDate,
-                    launchCount = _launchCount
+                    launchCount = _launchCount,
+                    updateSource = _updateSource, //gimhan added
                 )
                 prefsFile.writeText(json.encodeToString(AppSettingsData.serializer(), data))
             } catch (_: Exception) { }
