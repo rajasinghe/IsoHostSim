@@ -106,28 +106,30 @@ ISO8583Studio is a comprehensive desktop application designed for financial inst
 Build them from source: `./gradlew :composeApp:packageRpm` (Fedora), `:composeApp:packageDeb` (Debian/Ubuntu), or `packageMsi` / `packageExe` on Windows. They bundle their own Java runtime and are not code-signed.
 
 #### Updates (served from the Azure VM)
-Installed copies update themselves, so an installer is only handed out once. A few seconds after start-up the app reads `latest.json` from the update server. If that lists a newer version for its installer type (MSI, RPM or DEB), it offers **Update now**. Choosing it downloads the installer over HTTPS, checks its SHA-256, closes the app, runs the installer and reopens the app. Settings and saved configurations in `~/.iso8583studio` are kept. Users can also press **Check for updates** in Settings or About.
+Installed copies update themselves, so an installer is only handed out once. A few seconds after start-up the app reads `latest.json` from the update server. If that lists a newer version for its installer type (MSI, RPM or DEB), it offers **Update now**. Choosing it downloads the installer, checks its SHA-256, closes the app, runs the installer and reopens the app. Settings and saved configurations in `~/.iso8583studio` are kept. Users can also press **Check for updates** in Settings or About.
+
+The update server is plain nginx on the VM serving one folder, `/var/www/iso8583studio`. That folder holds `latest.json` and the installers; there is no application or database on the server.
 
 ```
- your PC                          Azure VM (Caddy, HTTPS)                      users' PCs
- publishUpdate ──scp──►  /var/www/iso8583studio/latest.json   ◄── https ──  app checks at start-up,
+ your PC                        Azure VM (nginx)                            users' PCs
+ publishUpdate ──scp──►  /var/www/iso8583studio/latest.json   ◄── http ──  app checks at start-up,
                                                ISO8583Studio-1.1.1.msi             "Update now" installs it
 ```
 
 **One-time setup**
-1. In the Azure portal, give the VM's public IP a DNS name: public IP resource → Configuration → *DNS name label* (for example `posplatform` → `posplatform.<region>.cloudapp.azure.com`). HTTPS certificates need a name, not a bare IP.
-2. In the VM's network security group, allow inbound TCP **80** and **443**.
-3. Copy the setup script to the VM and run it. It installs Caddy, which renews its Let's Encrypt certificate on its own:
+1. Copy the setup script to the VM and run it. It installs nginx and creates the folder:
    ```bash
    scp deploy/update-server/setup.sh azureuser@<vm-ip>:
-   ssh azureuser@<vm-ip> "sudo bash setup.sh posplatform.<region>.cloudapp.azure.com"
+   ssh azureuser@<vm-ip> "sudo bash setup.sh"
    ```
-4. In `gradle.properties`, set where the app looks and where releases are uploaded:
+   It uses port 80. If port 80 is already in use on the VM, pass another port: `sudo bash setup.sh 8088`.
+2. In the Azure portal, allow inbound TCP on that port: VM → Networking → add inbound port rule.
+3. In `gradle.properties`, set where the app looks and where releases are uploaded (add `:8088` after the IP if you used another port):
    ```properties
-   updateSource=https://posplatform.<region>.cloudapp.azure.com/iso8583studio
+   updateSource=http://<vm-ip>/iso8583studio
    publishTo=azureuser@<vm-ip>:/var/www/iso8583studio
    ```
-5. Build and publish, then hand out the installer once (it can be downloaded from `https://…/iso8583studio/<installer name>`):
+4. Build and publish, then hand out the installer once. People can download it from `http://<vm-ip>/iso8583studio/ISO8583Studio-<version>.msi`.
    ```bash
    ./gradlew :composeApp:publishUpdate
    ```
@@ -136,7 +138,9 @@ Installed copies update themselves, so an installer is only handed out once. A f
 1. Raise `studioVersion` in `composeApp/build.gradle.kts`.
 2. Run `./gradlew :composeApp:publishUpdate -PreleaseNotes="What changed"` on each OS you ship for. This builds the installer (MSI on Windows, RPM on Fedora, DEB otherwise), uploads it with `scp` and updates `latest.json` last, so users never see a half-uploaded release. Each installer type has its own entry, so a Windows release doesn't offer anything to Linux users before their package is published.
 
-Upload uses your normal SSH key (`ssh azureuser@<vm-ip>` must work without a password prompt). Users can point a copy at a different server in **Settings → Updates**. Updates need no admin rights on Windows (per-user MSI). On Linux, `pkexec` asks for the user's password, because dnf/apt install system-wide. `publishTo` also accepts a plain folder, for example a network share.
+Upload uses your normal SSH key (`ssh azureuser@<vm-ip>` must work without a password prompt). Users can point a copy at a different server in **Settings → Updates**. Updates need no admin rights on Windows (per-user MSI). On Linux, `pkexec` asks for the user's password, because dnf/apt install system-wide.
+
+**About plain HTTP.** The SHA-256 check catches broken or incomplete downloads. It can't stop someone who controls the network path from swapping both the installer and `latest.json`, because both come from the same server unencrypted. Moving to HTTPS later only needs a DNS name for the VM (Azure: public IP → Configuration → DNS name label) and a certificate. Then change `updateSource` to `https://…` and rebuild; nothing else changes.
 
 #### Option 2: Build from Source
 ```bash
