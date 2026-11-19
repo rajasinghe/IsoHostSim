@@ -40,7 +40,9 @@ object LogStamp {
             TAG to tag,
             TS to System.currentTimeMillis(),
             PID to pid,
-            TID to thread.threadId(),
+            // Thread.threadId() is JDK 19+; Thread.id works on the JDK 17 builds too. //gimhan added
+            @Suppress("DEPRECATION")
+            TID to thread.id,
             THREAD to thread.name,
         )
     }

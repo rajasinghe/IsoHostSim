@@ -139,7 +139,7 @@ class ConfigIniTest {
         val rendered = ConfigIni.pointerIni(avdDir, apiLevel = 30).render()
         assertEquals(
             "avd.ini.encoding=UTF-8\n" +
-                "path=/Users/x/.android/avd/ISO8583_PAX_A910S.avd\n" +
+                "path=${avdDir.toAbsolutePath()}\n" + // OS-native absolute path (C:\... on Windows) //gimhan added
                 "path.rel=avd/ISO8583_PAX_A910S.avd\n" +
                 "target=android-30\n",
             rendered,

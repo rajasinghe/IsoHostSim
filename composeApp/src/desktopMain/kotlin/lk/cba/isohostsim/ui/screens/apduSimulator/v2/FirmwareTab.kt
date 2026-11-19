@@ -43,6 +43,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -206,9 +207,14 @@ private suspend fun runPio(
                 .redirectErrorStream(true)
             pb.environment().putIfAbsent(
                 "PATH",
-                (System.getenv("PATH") ?: "") + ":" +
-                    "/usr/local/bin:/opt/homebrew/bin:" +
+                // File.pathSeparator: ';' on Windows, ':' elsewhere. //gimhan added
+                listOf(
+                    System.getenv("PATH") ?: "",
+                    "/usr/local/bin",
+                    "/opt/homebrew/bin",
                     System.getProperty("user.home") + "/.platformio/penv/bin",
+                    System.getProperty("user.home") + "\\.platformio\\penv\\Scripts",
+                ).joinToString(File.pathSeparator),
             )
             val proc = pb.start()
             proc.inputStream.bufferedReader().use { reader ->
@@ -273,6 +279,8 @@ internal fun detectPio(): Path? {
         "$home/.platformio/penv/bin/pio",
         "/usr/bin/pio",
         "$home/.local/bin/pio",
+        // PlatformIO's Windows installer puts pio.exe under penv\Scripts. //gimhan added
+        "$home\\.platformio\\penv\\Scripts\\pio.exe",
     )
     val pyVersionsRoot = Paths.get("$home/Library/Python")
     if (Files.isDirectory(pyVersionsRoot)) {
@@ -287,9 +295,12 @@ internal fun detectPio(): Path? {
         if (Files.exists(p) && Files.isExecutable(p)) return p
     }
     return runCatching {
-        val proc = ProcessBuilder("/bin/sh", "-c", "command -v pio").redirectErrorStream(true).start()
-        val output = proc.inputStream.bufferedReader().readText().trim()
-        proc.waitFor()
+        // Windows has no /bin/sh; `where` is its `command -v`. //gimhan added
+        val isWindows = System.getProperty("os.name").orEmpty().lowercase().contains("win")
+        val lookup = if (isWindows) listOf("where", "pio") else listOf("/bin/sh", "-c", "command -v pio")
+        val proc = ProcessBuilder(lookup).redirectErrorStream(true).start()
+        val output = proc.inputStream.bufferedReader().readText().trim().lineSequence().firstOrNull()?.trim().orEmpty()
+        if (proc.waitFor() != 0) return@runCatching null
         if (output.isNotEmpty()) Paths.get(output) else null
     }.getOrNull()
 }

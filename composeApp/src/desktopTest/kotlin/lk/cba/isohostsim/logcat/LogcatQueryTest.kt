@@ -224,7 +224,8 @@ class LogcatQueryTest {
         LogStamp.stamp(e)
         assertEquals("LogcatQueryTest", e.metadata[LogStamp.TAG])
         assertTrue((e.metadata[LogStamp.PID] as Long) > 0)
-        assertEquals(Thread.currentThread().threadId(), e.metadata[LogStamp.TID])
+        @Suppress("DEPRECATION") // Thread.id, not threadId(): the build targets JDK 17 //gimhan added
+        assertEquals(Thread.currentThread().id, e.metadata[LogStamp.TID])
 
         val explicit = LogEntry(timestamp = "10:00:00.000", type = LogType.INFO, message = "hi", source = "APDU/USB")
         LogStamp.stamp(explicit)

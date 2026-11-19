@@ -45,7 +45,7 @@ class ScreenPreviewTest {
 
     @Test
     fun home() = render("home") {
-        Shell { HomeScreen(viewModel = HomeScreenViewModel(), onToolSelected = {}, onGetStarted = {}) }
+        Shell { HomeScreen(viewModel = HomeScreenViewModel(), onToolSelected = {}) }
     }
 
     @Test
@@ -66,7 +66,7 @@ class ScreenPreviewTest {
 
     @Test
     fun homeWide() = render("home-wide", width = 1920, height = 1000) {
-        Shell { HomeScreen(viewModel = HomeScreenViewModel(), onToolSelected = {}, onGetStarted = {}) }
+        Shell { HomeScreen(viewModel = HomeScreenViewModel(), onToolSelected = {}) }
     }
 
     @Test

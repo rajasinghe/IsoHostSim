@@ -64,7 +64,8 @@ class HostProfileSettingsTest {
         val cfg = HostProfileLoader.toGatewayConfig(
             assertIs<ProfileResult.Ok>(HostProfileLoader.parse("""{ "name": "HNB IM30" }""")).profile, "id", null,
         )
-        assertTrue(cfg.logFileName.endsWith("logs/HNB-IM30.log"), cfg.logFileName)
+        // Normalise separators so the check also holds for Windows paths. //gimhan added
+        assertTrue(cfg.logFileName.replace('\\', '/').endsWith("logs/HNB-IM30.log"), cfg.logFileName)
     }
 
     @Test

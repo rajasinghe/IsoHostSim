@@ -216,7 +216,8 @@ class ISO8583MethodExecutor {
 
             // Step 1: Compile Kotlin file to JAR
             val compileCommand = listOf(
-                "kotlinc",
+                // On Windows kotlinc ships as kotlinc.bat, which ProcessBuilder won't find by bare name. //gimhan added
+                if (System.getProperty("os.name").orEmpty().lowercase().contains("win")) "kotlinc.bat" else "kotlinc",
                 kotlinFile.absolutePath,
                 "-include-runtime",
                 "-d",
