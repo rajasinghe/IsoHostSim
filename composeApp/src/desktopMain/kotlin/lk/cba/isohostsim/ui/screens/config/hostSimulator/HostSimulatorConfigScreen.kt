@@ -23,12 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import lk.cba.isohostsim.ui.design.PageHeader
 import lk.cba.isohostsim.ui.design.PosButton
-import lk.cba.isohostsim.ui.design.PosButtonKind
 
 /**
- * Host Simulator configuration. Each simulator is a JSON profile (see docs/host-profiles.md):
- * adding one picks a profile file, and the file holds every setting the old Gateway Type,
- * Transmission and Log tabs had. The one tab here shows what the file sets up.
+ * Host Simulator configuration. Every server host answers from the profile built into the app
+ * (see docs/host-profiles.md), which developers change in the source. The one tab here shows,
+ * read only, what it sets up.
  */
 @Composable
 fun HostSimulatorConfigScreen(
@@ -50,11 +49,10 @@ fun HostSimulatorConfigScreen(
         topBar = {
             PageHeader(
                 title = "Host simulators",
-                subtitle = "Each simulator is a JSON profile file. Edit the file and the running gateway picks up the change.",
+                subtitle = "Each host answers from the profile built into the app. Pick the port and override replies on the Local Host screen.",
                 modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 28.dp, bottom = 8.dp),
                 actions = {
-                    PosButton("Add from JSON", onClick = { addFromJsonProfile(appState) }, kind = PosButtonKind.Secondary)
-                    PosButton("New profile", onClick = { createStarterProfile(appState) })
+                    PosButton("Add host", onClick = { addBuiltInHost(appState) })
                 },
             )
         },
@@ -70,8 +68,7 @@ fun HostSimulatorConfigScreen(
                 containerStatus = DevelopmentStatus.STABLE,
             ),
             onSelectConfig = { appState.selectConfig(it.id) },
-            // A new simulator is a profile file.
-            createNewConfig = { addFromJsonProfile(appState) },
+            createNewConfig = { addBuiltInHost(appState) },
             onDeleteConfig = {
                 appState.deleteConfig(it.id)
             },

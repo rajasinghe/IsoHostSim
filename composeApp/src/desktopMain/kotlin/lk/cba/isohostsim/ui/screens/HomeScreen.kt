@@ -263,10 +263,10 @@ fun HomeScreen(
                             HostRow(
                                 name = cfg.name,
                                 address = "${cfg.serverAddress.ifBlank { "0.0.0.0" }}:${cfg.serverPort}",
-                                note = if (cfg.profilePath != null) {
-                                    "Profile ${cfg.profilePath!!.substringAfterLast('/').substringAfterLast('\\')}"
+                                note = if (cfg.gatewayType == lk.cba.isohostsim.data.model.GatewayType.SERVER) {
+                                    "Answers from the built-in profile"
                                 } else {
-                                    "Made before profiles. Export it to a JSON file to edit it in your editor."
+                                    "${cfg.gatewayType.name.lowercase().replaceFirstChar(Char::uppercase)} gateway"
                                 },
                                 running = running != null,
                                 actionLabel = if (running != null) "Open monitor" else "Open",

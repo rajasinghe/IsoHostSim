@@ -16,9 +16,28 @@ class SimulatedResponse(
 ) {
     private var isoData: Iso8583Data? = null
 
+    /** The profile transaction that matched the request, or null when none did. */
+    var ruleName: String? = null
+        private set
+
+    /** The reply built for the request, or null when none is sent (unmatched, no decline code). */
+    val message: Iso8583Data? get() = isoData
+
+    /** Replaces F39 in the reply, for an override. Does nothing when there is no reply. */
+    fun setResponseCode(code: String) {
+        val response = isoData ?: return
+        val template = config.getBitTemplate(isFirst) ?: emptyArray()
+        response.bitAttributes[38].apply {
+            applyTemplate(template, 39)
+            updateBit(code)
+            isSet = true
+        }
+    }
+
     init {
 
         val transaction = getMatchedSimulatedTransaction()
+        ruleName = transaction?.description
         transaction?.let {
             // The simulation section decides how often [SIMRC] resolves to a decline; the template
             // decides which field carries it.

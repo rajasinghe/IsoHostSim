@@ -1,6 +1,8 @@
 package lk.cba.isohostsim.data
 
 import lk.cba.isohostsim.domain.service.hostSimulatorService.ResponseMode
+import lk.cba.isohostsim.domain.service.hostSimulatorService.LocalHostState
+import lk.cba.isohostsim.domain.service.hostSimulatorService.SETTLEMENT_REJECT_CODE
 import RestEnabledGatewayHandler
 import com.fasterxml.jackson.core.JsonParser
 import com.fasterxml.jackson.databind.DeserializationFeature
@@ -655,23 +657,74 @@ class GatewayClient {
                     }
                 } else {
                     val dataRequest = receive(firstConnection)
+                    val receivedAt = java.time.Instant.now()
                     m_Request?.readMessage = dataRequest?.pack()
                     val response =
                         SimulatedResponse(dataRequest, gatewayHandler!!.configuration, true)
+
+                    // Overrides set on the Local Host screen, for this terminal or every terminal.
+                    val local = LocalHostState.of(gatewayHandler!!.configuration.id)
+                    val tid = dataRequest?.takeIf { it.bitAttributes.getOrNull(40)?.isSet == true }?.getValue(40)?.trim()
+                    val active = local.activeFor(tid)
+                    val general = active.general
+                    val isSettlement = dataRequest?.messageType?.toIntOrNull() == 500 && dataRequest.getValue(2) == "920000"
+                    // A decline or no response set for every reply wins over the settlement reject.
+                    val settleReject = active.rejectSettlement
+                        ?.takeIf { isSettlement && general?.responseCode == null && general?.noResponse != true }
+                    settleReject?.let {
+                        response.setResponseCode(SETTLEMENT_REJECT_CODE)
+                        writeServerLog(createLogEntry(type = LogType.WARNING, "SETTLEMENT REJECTED WITH 95 (override), batch upload expected"))
+                    }
+                    general?.responseCode?.let {
+                        response.setResponseCode(it)
+                        writeServerLog(createLogEntry(type = LogType.WARNING, "RESPONSE CODE SET TO $it (override)"))
+                    }
+                    val applied = settleReject ?: general
+                    val remote = firstConnection?.let { "${it.inetAddress?.hostAddress}:${it.port}" } ?: ""
+                    var disposition = when {
+                        response.ruleName != null -> "matched"
+                        response.message != null -> "unmatched"
+                        else -> "no-reply"
+                    }
+                    fun record(responseBytes: ByteArray?, answered: Boolean) = local.record(
+                        LocalHostState.record(
+                            request = dataRequest,
+                            requestBytes = dataRequest?.rawMessage?.takeIf { it.isNotEmpty() },
+                            response = response.message,
+                            responseBytes = responseBytes,
+                            receivedAt = receivedAt,
+                            respondedAt = if (answered) java.time.Instant.now() else null,
+                            remote = remote,
+                            rule = response.ruleName,
+                            disposition = disposition,
+                            override = applied,
+                        ),
+                    )
+
                     val control = gatewayHandler?.responseControl
-                    if (control?.mode == ResponseMode.NO_RESPONSE) {
+                    if (general?.noResponse == true || control?.mode == ResponseMode.NO_RESPONSE) {
                         // QA: the terminal never gets an answer for this request.
-                        writeServerLog(createLogEntry(type = LogType.WARNING, "RESPONSE WITHHELD (Don't respond is on)"))
+                        if (general?.noResponse == true) disposition = "override-no-response"
+                        writeServerLog(createLogEntry(type = LogType.WARNING, "RESPONSE WITHHELD (no response is on)"))
+                        record(null, answered = false)
                     } else {
+                    general?.delaySeconds?.takeIf { it > 0 }?.let {
+                        writeServerLog(createLogEntry(type = LogType.INFO, "DELAYING RESPONSE $it s (override)"))
+                        kotlinx.coroutines.delay(it * 1000L)
+                    }
                     if (control?.mode == ResponseMode.DELAY && control.delaySeconds > 0) {
                         writeServerLog(createLogEntry(type = LogType.INFO, "DELAYING RESPONSE ${control.delaySeconds} s"))
                         kotlinx.coroutines.delay(control.delaySeconds * 1000L)
                     }
                     if (gatewayHandler?.holdMessage == false) {
-                        send(response.pack(), true)
+                        val bytes = response.pack()
+                        record(bytes, answered = bytes != null)
+                        send(bytes, true)
                     } else {
                         gatewayHandler?.sendHoldMessage = {
-                            send(response.pack(), true)
+                            val bytes = response.pack()
+                            record(bytes, answered = bytes != null)
+                            send(bytes, true)
                             gatewayHandler?.sendHoldMessage = null
                         }
                     }

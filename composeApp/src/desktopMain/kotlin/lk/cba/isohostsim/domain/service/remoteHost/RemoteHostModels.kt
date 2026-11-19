@@ -82,7 +82,8 @@ data class RemoteOverride(
     val pausedChangedAt: String? = null,
     val pausedChangedBy: String? = null,
     val createdAt: String,
-    val expiresAt: String,
+    /** When it ends; null on the local host means "until the host stops". */
+    val expiresAt: String? = null,
 )
 
 @Serializable
@@ -164,6 +165,11 @@ data class RemoteHostSettings(
     val presets: List<FilterPreset> = emptyList(),
     /** One-click overrides (decline, no response, delay). Starts with a few common ones. */
     val overridePresets: List<OverridePreset> = DEFAULT_OVERRIDE_PRESETS,
+    /**
+     * The port each Local Host listens on, by gateway id, as the tester last set it. Kept here
+     * rather than in the profile file, which is for developers and would reset it on reload.
+     */
+    val localPorts: Map<String, Int> = emptyMap(),
 )
 
 /**

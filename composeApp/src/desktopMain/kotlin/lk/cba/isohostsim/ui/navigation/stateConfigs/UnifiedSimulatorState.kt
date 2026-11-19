@@ -749,6 +749,9 @@ data class UnifiedSimulatorState(
     fun load() {
         val file = StudioPaths.simulatorsFile(name)
         import(file)
+        // Server hosts answer from the profile built into the app, not from a file.
+        hostConfigs.value = lk.cba.isohostsim.domain.service.hostSimulatorService.profile.BuiltInHostProfile
+            .install(hostConfigs.value, ::generateConfigId)
     }
 
     /**

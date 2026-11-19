@@ -54,7 +54,7 @@ sealed class RemoteConnection {
  * already filtered by the host to the tester's TID and MID. The stream reconnects on its own and
  * refills history after a reconnect or a "gap" (events the host dropped because we fell behind).
  */
-class RemoteHostClient(baseUrl: String) {
+class RemoteHostClient(baseUrl: String) : HostFeed {
     val baseUrl: String = normalizeBaseUrl(baseUrl)
     private val wsUrl = this.baseUrl.replaceFirst("http", "ws") + "/api/stream"
 
@@ -75,14 +75,14 @@ class RemoteHostClient(baseUrl: String) {
     private val _profile = MutableStateFlow<RemoteProfile?>(null)
     val profile: StateFlow<RemoteProfile?> = _profile.asStateFlow()
     private val _txns = MutableStateFlow<List<RemoteTxn>>(emptyList())
-    val transactions: StateFlow<List<RemoteTxn>> = _txns.asStateFlow()
+    override val transactions: StateFlow<List<RemoteTxn>> = _txns.asStateFlow()
     private val _logs = MutableStateFlow<List<RemoteLog>>(emptyList())
     val logs: StateFlow<List<RemoteLog>> = _logs.asStateFlow()
     private val _overrides = MutableStateFlow<List<RemoteOverride>>(emptyList())
-    val overrides: StateFlow<List<RemoteOverride>> = _overrides.asStateFlow()
+    override val overrides: StateFlow<List<RemoteOverride>> = _overrides.asStateFlow()
     private val _olderTxns = MutableStateFlow<String?>(null)
     /** Cursor for the next older page of transactions, or null when everything is loaded. */
-    val olderTransactionsCursor: StateFlow<String?> = _olderTxns.asStateFlow()
+    override val olderTransactionsCursor: StateFlow<String?> = _olderTxns.asStateFlow()
 
     @Volatile var filter: TerminalFilter = TerminalFilter()
         private set
@@ -203,7 +203,7 @@ class RemoteHostClient(baseUrl: String) {
     }
 
     /** Loads the next older page of transactions for the current filter. */
-    suspend fun loadOlderTransactions() {
+    override suspend fun loadOlderTransactions() {
         val cursor = _olderTxns.value ?: return
         val f = filter
         val page: Page<RemoteTxn> = ok(http.get("$baseUrl/api/transactions") { filterParams(f); parameter("limit", PAGE); parameter("before", cursor) })
@@ -217,7 +217,7 @@ class RemoteHostClient(baseUrl: String) {
         _overrides.value = page.items
     }
 
-    suspend fun setOverride(request: OverrideRequest): RemoteOverride {
+    override suspend fun setOverride(request: OverrideRequest): RemoteOverride {
         val created: RemoteOverride = ok(http.post("$baseUrl/api/overrides") {
             contentType(ContentType.Application.Json)
             setBody(request)
@@ -227,7 +227,7 @@ class RemoteHostClient(baseUrl: String) {
     }
 
     /** Pauses or resumes an override; a paused one stays listed but the terminal gets normal replies. */
-    suspend fun pauseOverride(id: String, paused: Boolean, by: String? = null): RemoteOverride {
+    override suspend fun pauseOverride(id: String, paused: Boolean, by: String?): RemoteOverride {
         val updated: RemoteOverride = ok(http.patch("$baseUrl/api/overrides/$id") {
             contentType(ContentType.Application.Json)
             setBody(PauseRequest(paused, by))
@@ -236,7 +236,7 @@ class RemoteHostClient(baseUrl: String) {
         return updated
     }
 
-    suspend fun deleteOverride(id: String) {
+    override suspend fun deleteOverride(id: String) {
         val response = http.delete("$baseUrl/api/overrides/$id")
         if (!response.status.isSuccess() && response.status.value != 404) ok<JsonObject>(response)
         refreshOverrides()

@@ -1,31 +1,25 @@
 # Host Simulator profiles (JSON)
 
 A host profile is one JSON file that holds everything a Host Simulator gateway needs: where to listen,
-how messages are framed, field formats, and the transactions to answer. QA edits the file; the app
-checks it and runs it. Profiles live in `~/.iso8583studio/hosts/`, next to `host-profile.schema.json`,
-which gives VS Code and IntelliJ completion and inline checks.
+how messages are framed, field formats, and the transactions to answer.
 
-## Adding a Host Simulator
+## The built-in profile (developers only)
 
-The Host Simulator configuration screen has no settings tabs any more: a simulator **is** its profile.
+The app has one profile built in, `composeApp/src/desktopMain/resources/host-profile/all-apps.json`,
+and every server host answers from it. Testers can't pick, open or edit it in the app; the Local Host
+screen and the host list show it read only, and testers change replies with overrides instead.
 
-* **New profile** writes a starter file (sale, void, reversal, settlement) to `~/.iso8583studio/hosts/`,
-  opens it in your editor and adds the simulator.
-* **Add from JSON** (or the **+** in the list) picks an existing profile. The file is checked first;
-  problems are listed and nothing changes. Adding the same file again updates that simulator.
-* The **Profile** view shows the file, **Open in editor**, **Reload from file**, and a summary of what
-  the profile sets up.
-* An older simulator made before profiles shows **Export to JSON profile**, which writes its settings to
-  a file and links it.
+To change what the host answers:
 
-On a running simulator linked to a profile, the in-app **Settings** and **ISO8583 Template** tabs are
-hidden: the file is the only place to change it.
+1. Edit `composeApp/src/desktopMain/resources/host-profile/all-apps.json`. The schema in
+   `host-profile.schema.json` gives VS Code and IntelliJ completion and inline checks.
+2. Rebuild the app. When it loads, every server host takes the new profile; the tester's port is kept.
 
-## Editing while it runs
+A profile with problems fails the build's tests (`BuiltInHostProfileTest`) and stops the app at
+startup with the list of problems, so a broken file never reaches testers.
 
-Save the file and the running gateway reloads it within a second. If the file has problems they are
-listed on the gateway's Profile line and the gateway keeps its last good profile. Framing, fields and
-transactions apply from the next request; a changed address or port needs Stop and Start.
+The port in the file is only the default: testers pick the port on the Local Host screen, and the
+host binds to the Wi-Fi hotspot's address.
 
 ## Format
 

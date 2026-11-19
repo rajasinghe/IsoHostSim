@@ -1,0 +1,138 @@
+{
+  "$schema": "host-profile.schema.json",
+  "name": "all-apps",
+  "description": "One host for HNB, SBC (Sampath), CBC-new, CBC-IM30 and CBC v2. TLE must be OFF on every acquirer of the terminal app.",
+
+  "gateway": {
+    "type": "SERVER",
+    "transmission": "SYNCHRONOUS",
+    "maxConnections": 100,
+    "timeoutSeconds": 30,
+    "terminateOnError": false
+  },
+
+  // Same address and port as the old gimhan-sim profile: stop that one before starting this one.
+  "listen": { "connection": "TCP", "address": "10.42.0.1", "port": 8000 },
+
+  "framing": {
+    "lengthHeader": "HEX_HL",   // all five apps: 2-byte binary length that excludes itself
+    "tpdu": "swap"              // SBC and HNB check the swap (rsp 60+0000+0NNN for req 60+0NNN+0000); the others ignore it
+  },
+
+  "logging": { "file": "", "maxSizeMB": 10, "rawData": false, "textData": false, "encoding": "ASCII" },
+
+  // Only the formats that differ from the standard template. F60-F63 are ASCII behind a 2-byte BCD
+  // length that counts bytes in every app; the standard template would read them as BCD digits.
+  "fields": {
+    "12": { "type": "BCD", "length": "FIXED",  "max": 6 },
+    "28": { "type": "BCD", "length": "FIXED",  "max": 10 },
+    "37": { "type": "AN",  "length": "FIXED",  "max": 12 },
+    "43": { "type": "AN",  "length": "FIXED",  "max": 3 },
+    "44": { "type": "AN",  "length": "LLVAR",  "max": 25 },
+    "48": { "type": "ANS", "length": "LLLVAR", "max": 999 },
+    "49": { "type": "AN",  "length": "FIXED",  "max": 3 },
+    "54": { "type": "AN",  "length": "LLLVAR", "max": 999 },
+    "60": { "type": "AN",  "length": "LLLVAR", "max": 999 },
+    "61": { "type": "AN",  "length": "LLLVAR", "max": 999 },
+    "62": { "type": "AN",  "length": "LLLVAR", "max": 999 },
+    "63": { "type": "AN",  "length": "LLLVAR", "max": 999 }
+  },
+
+  // Replies carry only fields that every app can parse. CBC v2 reads a reply with a fixed list of
+  // fields per transaction and loses its place on any other bit, so F42, F55, F63 and F64 are never
+  // sent. F41 and F42 are left out on purpose: every app treats them as optional, and an app that
+  // compares them exactly fails the transaction when its terminal id or merchant id is padded.
+  // F12 and F13 are always sent together or not at all, because F12 alone corrupts the stored date.
+  // Replies are only ever F39=00; set it to 05 (decline) or use [SIMRC] to test declines.
+  "transactions": [
+    {
+      "name": "SALE",
+      "match": { "mti": "0200", "processingCode": "000000" },
+      "respond": {
+        "echo": ["3", "4", "11"],
+        "set": { "12": "[TIME]", "13": "[DATE]", "37": "[RAND]", "38": "[RAND]", "39": "00" }
+      }
+    },
+    {
+      "name": "VOID",
+      "match": { "mti": "0200", "processingCode": "020000" },
+      "respond": {
+        "echo": ["3", "4", "11", "37", "38"],
+        "set": { "12": "[TIME]", "13": "[DATE]", "39": "00" }
+      }
+    },
+    {
+      "name": "REFUND",
+      "match": { "mti": "0200", "processingCode": "200000" },
+      "respond": {
+        // CBC v2 does not accept F37 in a refund reply, so no RRN is returned for refunds.
+        "echo": ["3", "4", "11"],
+        "set": { "12": "[TIME]", "13": "[DATE]", "38": "[RAND]", "39": "00" }
+      }
+    },
+    {
+      "name": "PREAUTH VOID (SBC)",
+      "match": { "mti": "0200", "processingCode": "320000" },
+      "respond": {
+        "echo": ["3", "4", "11", "37", "38"],
+        "set": { "12": "[TIME]", "13": "[DATE]", "39": "00" }
+      }
+    },
+    {
+      "name": "PREAUTH",
+      "match": { "mti": "0100", "processingCode": "300000" },
+      "respond": {
+        "echo": ["3", "4", "11"],
+        "set": { "12": "[TIME]", "13": "[DATE]", "37": "[RAND]", "38": "[RAND]", "39": "00" }
+      }
+    },
+    {
+      // Pre-auth completion, offline sale and tip adjust all travel as 0220. F11 must be echoed
+      // (CBC v2 uses it to mark the record sent) and F37/F38 are echoed so the stored record keeps them.
+      "name": "OFFLINE / COMPLETION / ADJUST",
+      "match": { "mti": "0220", "processingCode": "*" },
+      "respond": {
+        "echo": ["3", "4", "11", "37", "38"],
+        "set": { "39": "00" }
+      }
+    },
+    {
+      // Any original processing code (sale, void, refund, pre-auth). Sent up to 3 times until F39=00.
+      "name": "REVERSAL",
+      "match": { "mti": "0400", "processingCode": "*" },
+      "respond": {
+        "echo": ["3", "4", "11"],
+        "set": { "39": "00" }
+      }
+    },
+    {
+      // Settlement 920000 and settlement end 960000. F39=00 completes without a batch upload;
+      // change the 920000 answer to 95 to make the terminal send 0320 batch uploads first.
+      "name": "SETTLEMENT",
+      "match": { "mti": "0500", "processingCode": "*" },
+      "respond": {
+        "echo": ["3", "11"],
+        "set": { "39": "00" }
+      }
+    },
+    {
+      "name": "BATCH UPLOAD",
+      "match": { "mti": "0320", "processingCode": "*" },
+      "respond": {
+        "echo": ["3", "4", "11"],
+        "set": { "39": "00" }
+      }
+    },
+    {
+      "name": "ECHO",
+      "match": { "mti": "0820", "processingCode": "*" },
+      "respond": {
+        "echo": ["11"],
+        "set": { "39": "00" }
+      }
+    }
+  ],
+
+  // Anything else (TLE key download 0800, DCC inquiry) gets a decline the terminal can show.
+  "unmatched": { "responseCode": "96" }
+}

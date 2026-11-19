@@ -96,6 +96,25 @@ fun HostSimulatorScreen(
     onSaveClick: () -> Unit,
     onError: ResultDialogInterface? = null,
 ) {
+    // A server host answers terminals itself from the profile built into the app: testers get the
+    // Local Host screen, and the profile stays in the source for developers. Proxy and client
+    // gateways keep the full screen below.
+    if (config != null && config.gatewayType == GatewayType.SERVER) {
+        val local = remember(config.id) {
+            lk.cba.isohostsim.domain.service.hostSimulatorService.profile.BuiltInHostProfile.applyTo(config)
+            HostSimulator(config).apply {
+                composeWindow = window
+                if (onError != null) setShowErrorListener(onError)
+            }
+        }
+        DisposableEffect(local) {
+            onDispose {
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { local.stop() }
+            }
+        }
+        LocalHostScreen(local, onBack = onBack, onSaveClick = onSaveClick)
+        return
+    }
     var gw: HostSimulator? = null
     val coroutineScope = rememberCoroutineScope()
     DisposableEffect(LocalLifecycleOwner.current) {

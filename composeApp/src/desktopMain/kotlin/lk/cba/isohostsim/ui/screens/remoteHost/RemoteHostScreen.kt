@@ -78,6 +78,7 @@ import lk.cba.isohostsim.domain.service.remoteHost.OverrideRequest
 import lk.cba.isohostsim.domain.service.remoteHost.RemoteConnection
 import lk.cba.isohostsim.domain.service.remoteHost.RemoteHealth
 import lk.cba.isohostsim.domain.service.remoteHost.RemoteHostClient
+import lk.cba.isohostsim.domain.service.remoteHost.HostFeed
 import lk.cba.isohostsim.domain.service.remoteHost.RemoteHostSettings
 import lk.cba.isohostsim.domain.service.remoteHost.RemoteHostStore
 import lk.cba.isohostsim.domain.service.remoteHost.RemoteLog
@@ -114,6 +115,9 @@ private val DATE_TIME = DateTimeFormatter.ofPattern("d MMM HH:mm").withZone(Zone
 
 private fun time(iso: String): String = runCatching { TIME.format(Instant.parse(iso)) }.getOrDefault(iso)
 private fun dateTime(iso: String): String = runCatching { DATE_TIME.format(Instant.parse(iso)) }.getOrDefault(iso)
+
+/** "until 18 Nov 19:02", or "until the host stops" for a local override with no expiry. */
+private fun until(expiresAt: String?): String = expiresAt?.let { "until ${dateTime(it)}" } ?: "until the host stops"
 
 private fun rcTone(rc: String?): Tone = when (rc) {
     null -> Tone.Warning
@@ -264,7 +268,7 @@ fun RemoteHostScreen() {
  * MID typed above; saving under an existing name updates it.
  */
 @Composable
-private fun PresetBar(
+internal fun PresetBar(
     presets: List<FilterPreset>,
     applied: TerminalFilter,
     current: TerminalFilter,
@@ -394,7 +398,7 @@ private fun HostPicker(hosts: List<SavedRemoteHost>, selected: SavedRemoteHost?,
 }
 
 @Composable
-private fun LabeledField(
+internal fun LabeledField(
     label: String,
     value: String,
     onChange: (String) -> Unit,
@@ -470,7 +474,7 @@ private fun LazyListScope.transactionsTab(client: RemoteHostClient) {
 }
 
 @Composable
-private fun TransactionsTable(client: RemoteHostClient) {
+internal fun TransactionsTable(client: HostFeed, emptyText: String = "No transactions yet for this filter. Run one on the terminal and it appears here.") {
     val txns by client.transactions.collectAsState()
     val older by client.olderTransactionsCursor.collectAsState()
     var expanded by remember { mutableStateOf<String?>(null) }
@@ -478,7 +482,7 @@ private fun TransactionsTable(client: RemoteHostClient) {
     val scope = rememberCoroutineScope()
 
     if (txns.isEmpty()) {
-        NoteBox("No transactions yet for this filter. Run one on the terminal and it appears here.")
+        NoteBox(emptyText)
         return
     }
     PosCard(Modifier.fillMaxWidth(), padding = 0.dp) {
@@ -729,18 +733,23 @@ private enum class OverrideKind(val label: String) { DECLINE("Decline"), NO_RESP
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun OverridesTab(
-    client: RemoteHostClient,
+internal fun OverridesTab(
+    client: HostFeed,
     filter: TerminalFilter,
     myName: String,
     presets: List<OverridePreset>,
     onMyName: (String) -> Unit,
     onPresets: (List<OverridePreset>) -> Unit,
+    /**
+     * The host on this PC: one tester, so an override with no Terminal ID applies to every
+     * terminal, and one with no minutes lasts until the host stops. There is no "Your name".
+     */
+    local: Boolean = false,
 ) {
     val overrides by client.overrides.collectAsState()
     val scope = rememberCoroutineScope()
     var tid by remember(filter.tid) { mutableStateOf(filter.tid) }
-    var minutes by remember { mutableStateOf("120") }
+    var minutes by remember { mutableStateOf(if (local) "" else "120") }
     var name by remember(myName) { mutableStateOf(myName) }
     var message by remember { mutableStateOf<Pair<String, Tone>?>(null) }
     var busy by remember { mutableStateOf(false) }
@@ -751,15 +760,18 @@ private fun OverridesTab(
     val settleTarget = terminal.ifBlank { ALL_TERMINALS }
     val settleReject = overrides.find { it.kind == "rejectSettlement" && it.tid == settleTarget }
     val settleRejectAll = overrides.find { it.kind == "rejectSettlement" && it.tid == ALL_TERMINALS && !it.paused }
-    val current = if (terminal.isEmpty()) null else overrides.find { it.kind == "general" && it.tid == terminal }
-    val setBy = name.trim().ifBlank { null }
+    // Declines and delays need a Terminal ID on a shared host; on this PC an empty one means every terminal.
+    val generalTarget = if (local) terminal.ifBlank { ALL_TERMINALS } else terminal
+    val canApply = generalTarget.isNotEmpty()
+    val current = if (!canApply) null else overrides.find { it.kind == "general" && it.tid == generalTarget }
+    val setBy = if (local) null else name.trim().ifBlank { null }
 
     /** Runs one call to the host; a failure shows under the card it came from. */
     fun run(onError: (String) -> Unit, action: suspend () -> Unit) {
         busy = true
         message = null
         settleMessage = null
-        if (name.trim() != myName) onMyName(name.trim())
+        if (!local && name.trim() != myName) onMyName(name.trim())
         scope.launch {
             try {
                 action()
@@ -771,7 +783,7 @@ private fun OverridesTab(
         }
     }
     val showError: (String) -> Unit = { message = it to Tone.Danger }
-    fun apply(p: OverridePreset) = run(showError) { client.setOverride(p.toRequest(terminal, setBy, minutes.toIntOrNull())) }
+    fun apply(p: OverridePreset) = run(showError) { client.setOverride(p.toRequest(generalTarget, setBy, minutes.toIntOrNull())) }
     fun togglePause(o: RemoteOverride, onError: (String) -> Unit = showError) = run(onError) { client.pauseOverride(o.id, !o.paused, setBy) }
     fun remove(o: RemoteOverride) = run(showError) { client.deleteOverride(o.id) }
 
@@ -779,10 +791,14 @@ private fun OverridesTab(
         PosCard(Modifier.fillMaxWidth(), padding = 16.dp) {
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 LabeledField("Terminal ID", tid, { tid = it }, Modifier.width(180.dp))
-                LabeledField("Your name", name, { name = it }, Modifier.width(180.dp))
+                if (!local) LabeledField("Your name", name, { name = it }, Modifier.width(180.dp))
                 LabeledField("Lasts (minutes)", minutes, { minutes = it.filter(Char::isDigit).take(4) }, Modifier.width(130.dp))
                 Text(
-                    "Leave the Terminal ID empty to reject settlements from every terminal. Declines, no response and delays need one.",
+                    if (local) {
+                        "Leave the Terminal ID empty to apply to every terminal, and Lasts empty to keep it until you stop the host."
+                    } else {
+                        "Leave the Terminal ID empty to reject settlements from every terminal. Declines, no response and delays need one."
+                    },
                     fontSize = 13.sp,
                     color = posMuted(),
                     modifier = Modifier.padding(bottom = 14.dp),
@@ -793,14 +809,25 @@ private fun OverridesTab(
         PosCard(Modifier.fillMaxWidth(), padding = 16.dp) {
             SectionTitle(
                 "Decline, no response or delay",
-                "Click one to apply it to every reply this terminal gets, replacing its current one. " +
-                    "Click it again to pause it: the terminal gets normal replies until you resume.",
+                if (local) {
+                    "Click one to apply it to every reply, replacing the current one. " +
+                        "Click it again to pause it: terminals get normal replies until you resume."
+                } else {
+                    "Click one to apply it to every reply this terminal gets, replacing its current one. " +
+                        "Click it again to pause it: the terminal gets normal replies until you resume."
+                },
             )
             Spacer(Modifier.height(12.dp))
-            if (terminal.isEmpty()) {
+            if (!canApply) {
                 NoteBox("Enter a Terminal ID above to use these.", Tone.Warning)
             } else {
-                CurrentOverride(terminal, current, busy, onPause = { togglePause(it) }, onRemove = { remove(it) })
+                CurrentOverride(
+                    if (generalTarget == ALL_TERMINALS) "Every terminal" else "Terminal $generalTarget",
+                    current,
+                    busy,
+                    onPause = { togglePause(it) },
+                    onRemove = { remove(it) },
+                )
             }
             Spacer(Modifier.height(12.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -813,7 +840,7 @@ private fun OverridesTab(
                             current!!.paused -> PresetState.Paused
                             else -> PresetState.On
                         },
-                        enabled = terminal.isNotEmpty() && !busy,
+                        enabled = canApply && !busy,
                         onClick = { if (on) togglePause(current!!) else apply(p) },
                         onDelete = { onPresets(presets - p) },
                     )
@@ -830,7 +857,7 @@ private fun OverridesTab(
                 Divider()
                 Spacer(Modifier.height(16.dp))
                 CustomOverrideForm(
-                    canSet = terminal.isNotEmpty() && !busy,
+                    canSet = canApply && !busy,
                     missingDefaults = DEFAULT_OVERRIDE_PRESETS.filterNot { d -> presets.any { it.name == d.name } },
                     onSet = ::apply,
                     onSave = { p -> onPresets(presets.filterNot { it.name.equals(p.name, true) } + p) },
@@ -856,7 +883,7 @@ private fun OverridesTab(
                             listOfNotNull(
                                 if (it.paused) "Paused" else "On",
                                 it.setBy?.let { by -> "set by $by" },
-                                "until ${dateTime(it.expiresAt)}",
+                                until(it.expiresAt),
                             ).joinToString(" · "),
                             fontSize = 13.sp,
                             color = posMuted(),
@@ -884,6 +911,11 @@ private fun OverridesTab(
             }
             Spacer(Modifier.height(8.dp))
             when {
+                settleTarget == ALL_TERMINALS && local -> Text(
+                    "Applies to every terminal connected to this PC. Enter a Terminal ID above to limit it to one terminal.",
+                    fontSize = 13.sp,
+                    color = posMuted(),
+                )
                 settleTarget == ALL_TERMINALS -> NoteBox(
                     "Applies to every terminal on this host, including other testers' terminals. " +
                         "Enter a Terminal ID above to limit it to one terminal.",
@@ -902,7 +934,10 @@ private fun OverridesTab(
             }
         }
 
-        SectionTitle("Active overrides", "Every tester on this host sees these. Pause or remove yours when you're done.")
+        SectionTitle(
+            "Active overrides",
+            if (local) "Pause or remove them when you're done." else "Every tester on this host sees these. Pause or remove yours when you're done.",
+        )
         if (overrides.isEmpty()) {
             NoteBox("No overrides are active. Every terminal gets the host config's normal replies.")
         } else {
@@ -925,7 +960,7 @@ private fun OverridesTab(
 
 /** What the terminal on the Overrides tab gets now, with Pause/Resume and Remove. */
 @Composable
-private fun CurrentOverride(terminal: String, o: RemoteOverride?, busy: Boolean, onPause: (RemoteOverride) -> Unit, onRemove: (RemoteOverride) -> Unit) {
+private fun CurrentOverride(who: String, o: RemoteOverride?, busy: Boolean, onPause: (RemoteOverride) -> Unit, onRemove: (RemoteOverride) -> Unit) {
     Row(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(posSunken()).padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -933,7 +968,7 @@ private fun CurrentOverride(terminal: String, o: RemoteOverride?, busy: Boolean,
     ) {
         if (o == null) {
             StatusChip("Normal", Tone.Neutral)
-            Text("Terminal $terminal gets the host config's normal replies.", fontSize = 14.sp, modifier = Modifier.weight(1f))
+            Text("$who gets the host config's normal replies.", fontSize = 14.sp, modifier = Modifier.weight(1f))
             return@Row
         }
         if (o.paused) StatusChip("Paused", Tone.Warning) else StatusChip("On", Tone.Danger, showDot = true)
@@ -1091,7 +1126,7 @@ private fun overrideMeta(o: RemoteOverride): String = listOfNotNull(
     o.pausedChangedAt?.let { at ->
         (if (o.paused) "paused" else "resumed") + (o.pausedChangedBy?.let { " by $it" } ?: "") + " at ${dateTime(at)}"
     },
-    "until ${dateTime(o.expiresAt)}",
+    until(o.expiresAt),
 ).joinToString(" · ")
 
 @Composable

@@ -101,7 +101,13 @@ class HostSimulator : Simulator {
     internal var unsentTrans = AtomicInteger(0)
     internal var incompleteTrans = AtomicInteger(0)
     internal var timeoutTrans = AtomicInteger(0)
-    internal var composeWindow = ComposeWindow()
+    // Made on first use: screens set their own window, and creating one up front needs a display.
+    private var ownWindow: ComposeWindow? = null
+    internal var composeWindow: ComposeWindow
+        get() = ownWindow ?: ComposeWindow().also { ownWindow = it }
+        set(value) {
+            ownWindow = value
+        }
     private var monitorClient: Socket? = null
     private var monitorServerWait = LocalDateTime.now()
     /**
