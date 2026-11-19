@@ -252,9 +252,9 @@ private fun ConsoleTab(
             ?.fields?.get("invoiceNo")?.let { invoiceNo = it }
     }
 
-    Row(Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+    Row(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         // Command list, grouped by what the commands are for
-        PosCard(Modifier.width(230.dp).fillMaxHeight(), padding = 10.dp) {
+        PosCard(Modifier.width(200.dp).fillMaxHeight(), padding = 10.dp) {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 listOf(
                     "Terminal" to listOf(EcrAction.CHECK_STATUS, EcrAction.BIN_REQUEST),
@@ -294,98 +294,124 @@ private fun ConsoleTab(
             }
         }
 
-        // Form and result, side by side when the window is wide enough for both
+        // Form and result stay side by side so the result never drops below the form; when the
+        // form column is narrow its fields stack one per line instead of squeezing into rows.
         BoxWithConstraints(Modifier.weight(1f).fillMaxHeight()) {
-            val sideBySide = maxWidth >= 980.dp
-            val form: @Composable () -> Unit = {
-                PosCard(Modifier.fillMaxWidth(), padding = 20.dp) {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(action.label, style = MaterialTheme.typography.h6)
-                            if (action.comingSoon) StatusChip("Coming soon", Tone.Accent)
-                        }
-                        when (action) {
-                            EcrAction.SALE, EcrAction.BIN_SALE -> {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Field("Amount (amt)", amt, Modifier.weight(1f)) { amt = it }
-                                    Field("Tip (tipAmt)", tipAmt, Modifier.weight(1f)) { tipAmt = it }
-                                    Field("Currency", currency, Modifier.weight(1f)) { currency = it }
-                                }
-                                Text(
-                                    "amt is sent as typed, in minor units: 100 means ${currency.ifBlank { "LKR" }} 1.00.",
-                                    style = MaterialTheme.typography.caption,
-                                )
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Field("ECR reference (ecrRef)", ecrRef, Modifier.weight(1f)) { ecrRef = it }
-                                    Field("txnConsequentialNo", txnConsequentialNo, Modifier.weight(1f)) { txnConsequentialNo = it }
-                                    if (action == EcrAction.SALE) {
-                                        Field("BIN reference (BinRefferance)", binRef, Modifier.weight(1f)) { binRef = it }
-                                    }
-                                }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Field("Mobile no. (digital receipt)", mobileNo, Modifier.weight(1f)) { mobileNo = it }
-                                    Field("Email (digital receipt)", email, Modifier.weight(1f)) { email = it }
-                                }
-                                Row { YesNo("Detail", detail) { detail = it }; YesNo("Print", print) { print = it } }
-                                if (action == EcrAction.BIN_SALE) {
+            val sideBySide = maxWidth >= 560.dp
+            // Rows of fields only when the form column itself has room for them.
+            val formWidth = if (sideBySide) maxWidth * FORM_WEIGHT - 10.dp else maxWidth
+            val stacked = formWidth < 520.dp
+            // [pinSend]: the fields scroll inside the card and the Send button stays visible at its foot.
+            val form: @Composable (Modifier, Boolean) -> Unit = { modifier, pinSend ->
+                PosCard(modifier.fillMaxWidth(), padding = 16.dp) {
+                    val fieldsScroll = rememberScrollState()
+                    Box(if (pinSend) Modifier.weight(1f, fill = false) else Modifier) {
+                        Column(
+                            if (pinSend) Modifier.verticalScroll(fieldsScroll).padding(end = 12.dp) else Modifier,
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(action.label, style = MaterialTheme.typography.h6)
+                                if (action.comingSoon) StatusChip("Coming soon", Tone.Accent)
+                            }
+                            when (action) {
+                                EcrAction.SALE, EcrAction.BIN_SALE -> {
+                                    FieldRow(
+                                        stacked,
+                                        { m -> Field("Amount (amt)", amt, m) { amt = it } },
+                                        { m -> Field("Tip (tipAmt)", tipAmt, m) { tipAmt = it } },
+                                        { m -> Field("Currency", currency, m) { currency = it } },
+                                    )
                                     Text(
-                                        "Runs Check Status, then BIN Request, then Sale with the new BIN reference.",
+                                        "amt is sent as typed, in minor units: 100 means ${currency.ifBlank { "LKR" }} 1.00.",
                                         style = MaterialTheme.typography.caption,
                                     )
+                                    FieldRow(
+                                        stacked,
+                                        { m -> Field("ECR reference (ecrRef)", ecrRef, m) { ecrRef = it } },
+                                        { m -> Field("txnConsequentialNo", txnConsequentialNo, m) { txnConsequentialNo = it } },
+                                        *(if (action == EcrAction.SALE) {
+                                            arrayOf<@Composable (Modifier) -> Unit>(
+                                                { m -> Field("BIN reference (BinRefferance)", binRef, m) { binRef = it } },
+                                            )
+                                        } else emptyArray()),
+                                    )
+                                    FieldRow(
+                                        stacked,
+                                        { m -> Field("Mobile no. (digital receipt)", mobileNo, m) { mobileNo = it } },
+                                        { m -> Field("Email (digital receipt)", email, m) { email = it } },
+                                    )
+                                    Row { YesNo("Detail", detail) { detail = it }; YesNo("Print", print) { print = it } }
+                                    if (action == EcrAction.BIN_SALE) {
+                                        Text(
+                                            "Runs Check Status, then BIN Request, then Sale with the new BIN reference.",
+                                            style = MaterialTheme.typography.caption,
+                                        )
+                                    }
                                 }
-                            }
-                            EcrAction.VOID -> {
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Field("Invoice no.", invoiceNo, Modifier.weight(1f)) { invoiceNo = it }
-                                    Field("Password (pwd)", pwd, Modifier.weight(1f)) { pwd = it }
+                                EcrAction.VOID -> {
+                                    FieldRow(
+                                        stacked,
+                                        { m -> Field("Invoice no.", invoiceNo, m) { invoiceNo = it } },
+                                        { m -> Field("Password (pwd)", pwd, m) { pwd = it } },
+                                    )
+                                    FieldRow(
+                                        stacked,
+                                        { m -> Field("Mobile no. (digital receipt)", mobileNo, m) { mobileNo = it } },
+                                        { m -> Field("Email (digital receipt)", email, m) { email = it } },
+                                    )
+                                    Row { YesNo("Detail", detail) { detail = it }; YesNo("Print", print) { print = it } }
                                 }
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Field("Mobile no. (digital receipt)", mobileNo, Modifier.weight(1f)) { mobileNo = it }
-                                    Field("Email (digital receipt)", email, Modifier.weight(1f)) { email = it }
+                                EcrAction.REQUEST_LAST -> Row { YesNo("Detail", detail) { detail = it } }
+                                EcrAction.TRANSFER_KEY -> {
+                                    Field("Key (32 characters)", key, Modifier.fillMaxWidth()) { key = it }
+                                    Text("${key.trim().length} of 32 characters", style = MaterialTheme.typography.caption)
                                 }
-                                Row { YesNo("Detail", detail) { detail = it }; YesNo("Print", print) { print = it } }
-                            }
-                            EcrAction.REQUEST_LAST -> Row { YesNo("Detail", detail) { detail = it } }
-                            EcrAction.TRANSFER_KEY -> {
-                                Field("Key (32 characters)", key, Modifier.fillMaxWidth()) { key = it }
-                                Text("${key.trim().length} of 32 characters", style = MaterialTheme.typography.caption)
-                            }
-                            EcrAction.BIN_REQUEST -> Text(
-                                "Asks the terminal to read a card and return its BIN reference for a BIN sale.",
-                                style = MaterialTheme.typography.caption,
-                            )
-                            EcrAction.CHECK_STATUS -> Text(
-                                "Sends 'active'. Also resets the terminal's repeat-command guard.",
-                                style = MaterialTheme.typography.caption,
-                            )
-                            EcrAction.CUSTOM_FLOW -> Text(
-                                "Build and run your own sequence of ECR commands. Coming soon.",
-                                style = MaterialTheme.typography.caption,
-                            )
-                            EcrAction.SETTLEMENT, EcrAction.LAST_SETTLEMENT -> Text(
-                                "Waits up to 180 seconds for the terminal, as the library does.",
-                                style = MaterialTheme.typography.caption,
-                            )
-                        }
-                        action.command?.takeIf { it in EcrSimulatorConfig.CHECK_STATUS_CAPABLE }?.let { cmd ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(
-                                    checked = cmd in config.checkStatusBefore,
-                                    onCheckedChange = { service.setCheckStatusBefore(cmd, it) },
+                                EcrAction.BIN_REQUEST -> Text(
+                                    "Asks the terminal to read a card and return its BIN reference for a BIN sale.",
+                                    style = MaterialTheme.typography.caption,
                                 )
-                                Text("Send Check Status first", style = MaterialTheme.typography.body2)
+                                EcrAction.CHECK_STATUS -> Text(
+                                    "Sends 'active'. Also resets the terminal's repeat-command guard.",
+                                    style = MaterialTheme.typography.caption,
+                                )
+                                EcrAction.CUSTOM_FLOW -> Text(
+                                    "Build and run your own sequence of ECR commands. Coming soon.",
+                                    style = MaterialTheme.typography.caption,
+                                )
+                                EcrAction.SETTLEMENT, EcrAction.LAST_SETTLEMENT -> Text(
+                                    "Waits up to 180 seconds for the terminal, as the library does.",
+                                    style = MaterialTheme.typography.caption,
+                                )
+                            }
+                            action.command?.takeIf { it in EcrSimulatorConfig.CHECK_STATUS_CAPABLE }?.let { cmd ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Checkbox(
+                                        checked = cmd in config.checkStatusBefore,
+                                        onCheckedChange = { service.setCheckStatusBefore(cmd, it) },
+                                    )
+                                    Text("Send Check Status first", style = MaterialTheme.typography.body2)
+                                }
+                            }
+                            action.command?.knownTerminalGap?.let {
+                                Text("Known gap: $it", color = ErrorRed, style = MaterialTheme.typography.caption)
                             }
                         }
-                        action.command?.knownTerminalGap?.let {
-                            Text("Known gap: $it", color = ErrorRed, style = MaterialTheme.typography.caption)
+                        if (pinSend) {
+                            Box(Modifier.matchParentSize()) {
+                                VerticalScrollbar(
+                                    adapter = rememberScrollbarAdapter(fieldsScroll),
+                                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                                )
+                            }
                         }
-                        if (!action.comingSoon) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                PosButton("Send ${action.label}", onClick = { send() }, enabled = !busy)
-                                if (busy) {
-                                    Spacer(Modifier.width(12.dp))
-                                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                                }
+                    }
+                    if (!action.comingSoon) {
+                        Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            PosButton("Send ${action.label}", onClick = { send() }, enabled = !busy)
+                            if (busy) {
+                                Spacer(Modifier.width(12.dp))
+                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                             }
                         }
                     }
@@ -408,15 +434,15 @@ private fun ConsoleTab(
             }
             if (sideBySide) {
                 Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                    Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())) { form() }
-                    Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState())) { result() }
+                    Column(Modifier.weight(FORM_WEIGHT).fillMaxHeight()) { form(Modifier.weight(1f, fill = false), true) }
+                    Column(Modifier.weight(1f - FORM_WEIGHT).fillMaxHeight().verticalScroll(rememberScrollState())) { result() }
                 }
             } else {
                 Column(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    form()
+                    form(Modifier, false)
                     result()
                 }
             }
@@ -449,15 +475,20 @@ private fun ResultCard(result: EcrResult) {
             ).mapNotNull { (k, label) -> result.fields[k]?.takeIf { it.isNotBlank() }?.let { label to it } }
             if (keyFields.isNotEmpty()) {
                 Divider()
-                keyFields.chunked(3).forEach { row ->
-                    Row(Modifier.fillMaxWidth()) {
-                        row.forEach { (label, value) ->
-                            Column(Modifier.weight(1f)) {
-                                Text(label, style = MaterialTheme.typography.caption)
-                                SelectionContainer { Text(value, style = MaterialTheme.typography.body2) }
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val columns = if (maxWidth < 420.dp) 2 else 3
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        keyFields.chunked(columns).forEach { row ->
+                            Row(Modifier.fillMaxWidth()) {
+                                row.forEach { (label, value) ->
+                                    Column(Modifier.weight(1f)) {
+                                        Text(label, style = MaterialTheme.typography.caption)
+                                        SelectionContainer { Text(value, style = MaterialTheme.typography.body2) }
+                                    }
+                                }
+                                repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                             }
                         }
-                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
@@ -556,6 +587,23 @@ private fun prettyJson(text: String): String {
     return runCatching {
         prettyJsonFormat.encodeToString(JsonElement.serializer(), Json.parseToJsonElement(trimmed))
     }.getOrDefault(text)
+}
+
+/** Share of the console's form+result area given to the form; the result gets the rest. */
+private const val FORM_WEIGHT = 0.42f
+
+/** Lays [fields] out in one row, or one per line when [stacked]; each gets the modifier to size itself. */
+@Composable
+private fun FieldRow(stacked: Boolean, vararg fields: @Composable (Modifier) -> Unit) {
+    if (stacked) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            fields.forEach { it(Modifier.fillMaxWidth()) }
+        }
+    } else {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            fields.forEach { it(Modifier.weight(1f)) }
+        }
+    }
 }
 
 @Composable
