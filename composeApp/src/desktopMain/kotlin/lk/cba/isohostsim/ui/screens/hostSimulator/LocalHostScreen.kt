@@ -6,6 +6,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -210,106 +211,110 @@ fun LocalHostScreen(gw: HostSimulator, onBack: () -> Unit, onSaveClick: () -> Un
         applyFilter()
     }
 
-    Column(
-        Modifier.fillMaxSize().background(MaterialTheme.colors.background).padding(start = 20.dp, end = 32.dp, top = 20.dp, bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
-            Spacer(Modifier.width(4.dp))
-            PageHeader(
-                title = "Local Host",
-                subtitle = if (running) {
-                    "${config.name} · answering your POS terminals. Watch the traffic and change the replies while it runs."
-                } else {
-                    "${config.name} · answers your POS terminals from this PC over its Wi-Fi hotspot. Set the port, then start."
-                },
-                leading = {
-                    if (running) StatusChip("Running", Tone.Success, showDot = true) else StatusChip("Stopped", Tone.Neutral, showDot = true)
-                },
-                actions = {
-                    if (running) {
-                        PosButton("Restart", { stop { start() } }, kind = PosButtonKind.Secondary, enabled = !busy)
-                        PosButton("Stop host", { stop() }, kind = PosButtonKind.Danger, enabled = !busy, icon = Icons.Default.Stop)
+    // The whole page scrolls as one, like the Remote Host, so the table isn't squeezed under the
+    // header and filter. //gimhan added
+    BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colors.background)) {
+        val viewportHeight = maxHeight
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 32.dp, top = 20.dp, bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+                Spacer(Modifier.width(4.dp))
+                PageHeader(
+                    title = "Local Host",
+                    subtitle = if (running) {
+                        "${config.name} · answering your POS terminals. Watch the traffic and change the replies while it runs."
                     } else {
-                        PosButton("Start host", ::start, enabled = !busy && port != null && portFree != false, icon = Icons.Default.PlayArrow)
+                        "${config.name} · answers your POS terminals from this PC over its Wi-Fi hotspot. Set the port, then start."
+                    },
+                    leading = {
+                        if (running) StatusChip("Running", Tone.Success, showDot = true) else StatusChip("Stopped", Tone.Neutral, showDot = true)
+                    },
+                    actions = {
+                        if (running) {
+                            PosButton("Restart", { stop { start() } }, kind = PosButtonKind.Secondary, enabled = !busy)
+                            PosButton("Stop host", { stop() }, kind = PosButtonKind.Danger, enabled = !busy, icon = Icons.Default.Stop)
+                        } else {
+                            PosButton("Start host", ::start, enabled = !busy && port != null && portFree != false, icon = Icons.Default.PlayArrow)
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            if (!running) {
+                Column(Modifier.fillMaxWidth().padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    ListenCard(
+                        hotspot = hotspot,
+                        portText = portText,
+                        onPort = { portText = it.filter(Char::isDigit).take(5) },
+                        port = port,
+                        portFree = portFree,
+                        firewall = firewall,
+                        onCheckAgain = { checkRun++ },
+                    )
+                    startError?.let { NoteBox(it, Tone.Danger) }
+                }
+                return@Column
+            }
+
+            Column(Modifier.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                RunningStrip(connectAddress, port ?: config.serverPort, hotspot, connected, config.name)
+                PosCard(Modifier.fillMaxWidth(), padding = 16.dp) {
+                    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        LabeledField("Terminal ID (F41)", tidText, { tidText = it }, Modifier.width(200.dp), onDone = ::applyFilter)
+                        LabeledField("Merchant ID (F42)", midText, { midText = it }, Modifier.width(220.dp), onDone = ::applyFilter)
+                        PosButton("Show", ::applyFilter, icon = Icons.Default.FilterList)
+                        if (!applied.isEmpty) PosButton("Show all", { tidText = ""; midText = ""; applyFilter() }, kind = PosButtonKind.Secondary)
                     }
-                },
-                modifier = Modifier.weight(1f),
-            )
-        }
-
-        if (!running) {
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                ListenCard(
-                    hotspot = hotspot,
-                    portText = portText,
-                    onPort = { portText = it.filter(Char::isDigit).take(5) },
-                    port = port,
-                    portFree = portFree,
-                    firewall = firewall,
-                    onCheckAgain = { checkRun++ },
-                )
-                startError?.let { NoteBox(it, Tone.Danger) }
-            }
-            return@Column
-        }
-
-        Column(Modifier.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            RunningStrip(connectAddress, port ?: config.serverPort, hotspot, connected, config.name)
-            PosCard(Modifier.fillMaxWidth(), padding = 16.dp) {
-                Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    LabeledField("Terminal ID (F41)", tidText, { tidText = it }, Modifier.width(200.dp), onDone = ::applyFilter)
-                    LabeledField("Merchant ID (F42)", midText, { midText = it }, Modifier.width(220.dp), onDone = ::applyFilter)
-                    PosButton("Show", ::applyFilter, icon = Icons.Default.FilterList)
-                    if (!applied.isEmpty) PosButton("Show all", { tidText = ""; midText = ""; applyFilter() }, kind = PosButtonKind.Secondary)
+                    Spacer(Modifier.height(12.dp))
+                    PresetBar(
+                        presets = settings.presets,
+                        applied = applied,
+                        current = TerminalFilter(tidText.trim(), midText.trim()),
+                        onPick = ::usePreset,
+                        onSave = { preset ->
+                            persist(settings.copy(presets = settings.presets.filterNot { it.name.equals(preset.name, true) } + preset))
+                            usePreset(preset)
+                        },
+                        onDelete = { preset -> persist(settings.copy(presets = settings.presets - preset)) },
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        when {
+                            applied.tid.isNotBlank() && applied.mid.isNotBlank() -> "Showing terminal ${applied.tid} at merchant ${applied.mid}"
+                            applied.tid.isNotBlank() -> "Showing terminal ${applied.tid}"
+                            applied.mid.isNotBlank() -> "Showing merchant ${applied.mid}"
+                            else -> "Showing every terminal connected to this PC"
+                        },
+                        fontSize = 13.sp,
+                        color = posMuted(),
+                    )
                 }
-                Spacer(Modifier.height(12.dp))
-                PresetBar(
-                    presets = settings.presets,
-                    applied = applied,
-                    current = TerminalFilter(tidText.trim(), midText.trim()),
-                    onPick = ::usePreset,
-                    onSave = { preset ->
-                        persist(settings.copy(presets = settings.presets.filterNot { it.name.equals(preset.name, true) } + preset))
-                        usePreset(preset)
-                    },
-                    onDelete = { preset -> persist(settings.copy(presets = settings.presets - preset)) },
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    when {
-                        applied.tid.isNotBlank() && applied.mid.isNotBlank() -> "Showing terminal ${applied.tid} at merchant ${applied.mid}"
-                        applied.tid.isNotBlank() -> "Showing terminal ${applied.tid}"
-                        applied.mid.isNotBlank() -> "Showing merchant ${applied.mid}"
-                        else -> "Showing every terminal connected to this PC"
-                    },
-                    fontSize = 13.sp,
-                    color = posMuted(),
-                )
+                val overrides by state.overrides.collectAsState()
+                val on = overrides.count { !it.paused }
+                SegmentedChoice(LocalTab.entries.toList(), tab, { if (it == LocalTab.OVERRIDES && on > 0) "Overrides · $on on" else it.label }, { tab = it })
             }
-            val overrides by state.overrides.collectAsState()
-            val on = overrides.count { !it.paused }
-            SegmentedChoice(LocalTab.entries.toList(), tab, { if (it == LocalTab.OVERRIDES && on > 0) "Overrides · $on on" else it.label }, { tab = it })
-        }
 
-        Box(Modifier.weight(1f).fillMaxWidth().padding(start = 12.dp)) {
-            when (tab) {
-                LocalTab.TRANSACTIONS -> Scrolling {
-                    TransactionsTable(feed, "No transactions yet. Run one on the terminal and it appears here.")
-                }
-                LocalTab.LOGS -> LogTab(
-                    logEntries = logText,
-                    history = logHistory,
-                    liveEntryCap = AppSettings.maxLiveLogEntries,
-                    onClearClick = { logText.clear() },
-                    connectionCount = gw.connectionCount.get(),
-                    bytesIncoming = gw.bytesIncoming.get().toLong(),
-                    bytesOutgoing = gw.bytesOutgoing.get().toLong(),
-                    concurrentConnections = connected,
-                )
-                LocalTab.OVERRIDES -> Scrolling {
-                    OverridesTab(
+            Column(Modifier.fillMaxWidth().padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                when (tab) {
+                    LocalTab.TRANSACTIONS -> TransactionsTable(feed, "No transactions yet. Run one on the terminal and it appears here.")
+                    // The log viewer scrolls its own list, so it gets about a screen's height. //gimhan added
+                    LocalTab.LOGS -> Box(Modifier.fillMaxWidth().height((viewportHeight - 48.dp).coerceAtLeast(360.dp))) {
+                        LogTab(
+                            logEntries = logText,
+                            history = logHistory,
+                            liveEntryCap = AppSettings.maxLiveLogEntries,
+                            onClearClick = { logText.clear() },
+                            connectionCount = gw.connectionCount.get(),
+                            bytesIncoming = gw.bytesIncoming.get().toLong(),
+                            bytesOutgoing = gw.bytesOutgoing.get().toLong(),
+                            concurrentConnections = connected,
+                        )
+                    }
+                    LocalTab.OVERRIDES -> OverridesTab(
                         client = feed,
                         filter = applied,
                         myName = "",
@@ -318,16 +323,11 @@ fun LocalHostScreen(gw: HostSimulator, onBack: () -> Unit, onSaveClick: () -> Un
                         onPresets = { persist(settings.copy(overridePresets = it)) },
                         local = true,
                     )
+                    LocalTab.CONFIG -> HostConfigView(config, state)
                 }
-                LocalTab.CONFIG -> Scrolling { HostConfigView(config, state) }
             }
         }
     }
-}
-
-@Composable
-private fun Scrolling(content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
 }
 
 // ---------- before starting ----------

@@ -29,6 +29,7 @@ import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +46,8 @@ import lk.cba.isohostsim.data.BitSpecific
 import lk.cba.isohostsim.data.model.GatewayConfig
 import lk.cba.isohostsim.data.model.MessageLengthType
 import lk.cba.isohostsim.domain.service.parser.ComparedField
+import lk.cba.isohostsim.domain.service.parser.ComparedTag
+import lk.cba.isohostsim.domain.service.parser.EmvTagComparer
 import lk.cba.isohostsim.domain.service.parser.DecodeException
 import lk.cba.isohostsim.domain.service.parser.DecodedField
 import lk.cba.isohostsim.domain.service.parser.DecodedPacket
@@ -119,6 +122,18 @@ fun IsoParserScreen(hostConfigs: List<GatewayConfig> = emptyList()) {
     var requestText by remember { mutableStateOf("") }
     var responseText by remember { mutableStateOf("") }
     var onlyDifferences by remember { mutableStateOf(false) }
+    // What the two compare sides are called; another screen can name them when it hands packets over. //gimhan added
+    var sideLabels by remember { mutableStateOf("Request" to "Response") }
+    val handoff = ParserHandoff.pending.value
+    LaunchedEffect(handoff) {
+        if (handoff != null) {
+            mode = Mode.COMPARE
+            requestText = handoff.firstHex
+            responseText = handoff.secondHex
+            sideLabels = handoff.firstLabel to handoff.secondLabel
+            ParserHandoff.pending.value = null
+        }
+    }
 
     val request = remember(requestText, framing, tpdu, format) { parse(requestText, framing, tpdu, format.template) }
     val response = remember(responseText, framing, tpdu, format, mode) {
@@ -135,7 +150,10 @@ fun IsoParserScreen(hostConfigs: List<GatewayConfig> = emptyList()) {
                 title = "ISO8583 Parser",
                 subtitle = "Paste a packet as hex. Spaces, new lines and 0x are fine.",
                 actions = {
-                    SegmentedChoice(Mode.entries.toList(), mode, { it.label }, { mode = it })
+                    SegmentedChoice(Mode.entries.toList(), mode, { it.label }, {
+                        mode = it
+                        sideLabels = "Request" to "Response" //gimhan added
+                    })
                 },
             )
         }
@@ -155,8 +173,8 @@ fun IsoParserScreen(hostConfigs: List<GatewayConfig> = emptyList()) {
                 HexInput("Packet", requestText, { requestText = it }, Modifier.fillMaxWidth())
             } else {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    HexInput("Request", requestText, { requestText = it }, Modifier.weight(1f))
-                    HexInput("Response", responseText, { responseText = it }, Modifier.weight(1f))
+                    HexInput(sideLabels.first, requestText, { requestText = it }, Modifier.weight(1f))
+                    HexInput(sideLabels.second, responseText, { responseText = it }, Modifier.weight(1f))
                 }
             }
         }
@@ -174,8 +192,8 @@ fun IsoParserScreen(hostConfigs: List<GatewayConfig> = emptyList()) {
         } else {
             item {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Box(Modifier.weight(1f)) { SideStatus("Request", request) }
-                    Box(Modifier.weight(1f)) { SideStatus("Response", response) }
+                    Box(Modifier.weight(1f)) { SideStatus(sideLabels.first, request) }
+                    Box(Modifier.weight(1f)) { SideStatus(sideLabels.second, response) }
                 }
             }
             val req = request as? Parsed.Ok
@@ -187,7 +205,18 @@ fun IsoParserScreen(hostConfigs: List<GatewayConfig> = emptyList()) {
                         req.packet,
                         res.packet,
                         onlyDifferences,
+                        sideLabels,
                     ) { onlyDifferences = it }
+                }
+                // Field 55 tag by tag, when either packet carries it. //gimhan added
+                if (req.packet[55] != null || res.packet[55] != null) {
+                    item {
+                        EmvCompareCard(
+                            EmvTagComparer.compare(req.packet[55]?.rawHex, res.packet[55]?.rawHex),
+                            onlyDifferences,
+                            sideLabels,
+                        )
+                    }
                 }
             }
         }
@@ -269,7 +298,7 @@ private fun PacketSummary(title: String?, parsed: Parsed.Ok) {
 @Composable
 private fun SideStatus(label: String, parsed: Parsed) {
     when (parsed) {
-        Parsed.Empty -> NoteBox("Paste the $label.")
+        Parsed.Empty -> NoteBox("Paste the ${label.replaceFirstChar(Char::lowercase)}.")
         is Parsed.Failed -> NoteBox("$label: ${parsed.message}", Tone.Danger)
         is Parsed.Ok -> PacketSummary(label, parsed)
     }
@@ -358,6 +387,7 @@ private fun CompareTable(
     request: DecodedPacket,
     response: DecodedPacket,
     onlyDifferences: Boolean,
+    sideLabels: Pair<String, String>,
     onOnlyDifferences: (Boolean) -> Unit,
 ) {
     val counts = rows.groupingBy { it.diff }.eachCount()
@@ -373,8 +403,8 @@ private fun CompareTable(
         HeaderRow {
             HeaderCell("Field", COL_FIELD)
             HeaderCell("Name", COL_NAME)
-            Text("Request", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = posMuted(), modifier = Modifier.weight(1f))
-            Text("Response", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = posMuted(), modifier = Modifier.weight(1f))
+            Text(sideLabels.first, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = posMuted(), modifier = Modifier.weight(1f))
+            Text(sideLabels.second, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = posMuted(), modifier = Modifier.weight(1f))
             HeaderCell("", 120.dp)
         }
         rows.filter { !onlyDifferences || it.diff != FieldDiff.SAME }.forEach { row ->
@@ -398,7 +428,7 @@ private fun CompareTable(
         }
     }
     Text(
-        "Click a row for each packet's raw bytes" + if (rows.any { it.number == 55 }) " and, for field 55, its EMV tags." else ".",
+        "Click a row for each packet's raw bytes" + if (rows.any { it.number == 55 }) ". Field 55 is compared tag by tag below." else ".",
         color = posMuted(),
         fontSize = 12.sp,
         modifier = Modifier.padding(top = 6.dp),
@@ -420,6 +450,50 @@ private fun CompareDetail(row: ComparedField) {
             }
         }
         Box(Modifier.width(120.dp))
+    }
+}
+
+/** Field 55's EMV tags side by side, each marked same, changed or in one packet only. //gimhan added */
+@Composable
+private fun EmvCompareCard(tags: List<ComparedTag>, onlyDifferences: Boolean, sideLabels: Pair<String, String>) {
+    val counts = tags.groupingBy { it.diff }.eachCount()
+    Column(Modifier.padding(top = 20.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Field 55 · EMV tags", style = MaterialTheme.typography.subtitle1)
+            FieldDiff.entries.forEach { d -> counts[d]?.let { StatusChip("${d.label}: $it", toneOf(d)) } }
+        }
+        PosCard(Modifier.fillMaxWidth().padding(top = 10.dp), padding = 0.dp) {
+            HeaderRow {
+                HeaderCell("Tag", COL_FIELD + 16.dp)
+                HeaderCell("Name", COL_NAME - 16.dp)
+                Text(sideLabels.first, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = posMuted(), modifier = Modifier.weight(1f))
+                Text(sideLabels.second, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = posMuted(), modifier = Modifier.weight(1f))
+                HeaderCell("", 120.dp)
+            }
+            val shown = tags.filter { !onlyDifferences || it.diff != FieldDiff.SAME }
+            if (tags.isEmpty()) {
+                Divider()
+                Text("No EMV tags could be read from field 55.", fontSize = 13.sp, color = posMuted(), modifier = Modifier.padding(16.dp))
+            } else if (shown.isEmpty()) {
+                Divider()
+                Text("Every tag is the same in both packets.", fontSize = 13.sp, color = posMuted(), modifier = Modifier.padding(16.dp))
+            }
+            shown.forEach { t ->
+                Divider()
+                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 9.dp), verticalAlignment = Alignment.Top) {
+                    Mono(t.tag, COL_FIELD + 16.dp, bold = true)
+                    Text(t.name.ifEmpty { "—" }, fontSize = 13.sp, color = if (t.name.isEmpty()) posMuted() else MaterialTheme.colors.onSurface, modifier = Modifier.width(COL_NAME - 16.dp).padding(end = 8.dp))
+                    listOf(t.request, t.response).forEach { v ->
+                        SelectionContainer(Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text(v ?: "—", fontFamily = FontFamily.Monospace, fontSize = 13.sp, color = if (v == null) posMuted() else MaterialTheme.colors.onSurface)
+                        }
+                    }
+                    Box(Modifier.width(120.dp)) {
+                        if (t.diff != FieldDiff.SAME) StatusChip(t.diff.label, toneOf(t.diff)) else Text("Same", fontSize = 12.sp, color = posMuted())
+                    }
+                }
+            }
+        }
     }
 }
 

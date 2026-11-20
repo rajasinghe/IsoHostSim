@@ -17,6 +17,12 @@ enum class EcrOutcome {
     UNKNOWN,
 }
 
+/** What a frame from the terminal was: its ACK, its final reply, or data the library rejected. //gimhan added */
+enum class EcrFrameKind { ACK, FINAL, INVALID }
+
+/** One frame exactly as the terminal sent it, before the library changed or dropped anything. //gimhan added */
+data class EcrFrame(val kind: EcrFrameKind, val raw: String)
+
 /** One finished ECR exchange: what was sent, what came back, and what it means. */
 data class EcrResult(
     val command: EcrCommand,
@@ -29,8 +35,19 @@ data class EcrResult(
     val fields: Map<String, String>,
     val startedAtMs: Long,
     val durationMs: Long,
+    /** Every frame the terminal sent, as received. The library returns only the final reply
+     *  (without its checksum) and drops the ACK frame, which carries the bank and serial number. //gimhan added */
+    val terminalFrames: List<EcrFrame> = emptyList(),
 ) {
     val succeeded: Boolean get() = outcome == EcrOutcome.APPROVED || outcome == EcrOutcome.ACKNOWLEDGED
+
+    /** Top-level fields of the terminal's ACK frame other than dataType: bankName, bankCode,
+     *  serialNo. Empty when no ACK came back. //gimhan added */
+    val terminalInfo: Map<String, String>
+        get() = terminalFrames.filter { it.kind == EcrFrameKind.ACK }.flatMap { f ->
+            val obj = runCatching { JSONObject(f.raw) }.getOrNull() ?: return@flatMap emptyList()
+            obj.keySet().filter { it != "dataType" }.map { it to obj.opt(it).toFieldString() }
+        }.toMap()
 
     companion object {
 
@@ -88,7 +105,7 @@ data class EcrResult(
             )
         }
 
-        private fun Any?.toFieldString(): String = when (this) {
+        internal fun Any?.toFieldString(): String = when (this) {
             null, JSONObject.NULL -> ""
             else -> toString()
         }

@@ -2,6 +2,7 @@ package lk.cba.isohostsim.domain.service.ecr
 
 import TCPJAVA_CBA_ClassLibrary.Communication.PaxPort
 import TCPJAVA_CBA_ClassLibrary.TCPJAVA_CBA_ClassLibrary
+import TCPJAVA_CBA_ClassLibrary.TerminalFrames
 import lk.cba.isohostsim.data.StudioPaths
 import lk.cba.isohostsim.ui.navigation.stateConfigs.ecr.EcrTransport
 import kotlinx.coroutines.Dispatchers
@@ -68,10 +69,18 @@ class EcrLibraryClient(
         timeoutSec: Int,
     ): EcrResult = withContext(Dispatchers.IO) {
         val started = clock()
-        val response = runCatching { invoke(target, command, request, encrypted, timeoutSec) }
+        // Record what the terminal sends during this call, as received. The library call blocks
+        // this thread, so begin/end bracket exactly its frames. //gimhan added
+        var frames: List<EcrFrame> = emptyList()
+        TerminalFrames.begin()
+        val response = try {
+            runCatching { invoke(target, command, request, encrypted, timeoutSec) }
+        } finally {
+            frames = TerminalFrames.end().map { EcrFrame(EcrFrameKind.valueOf(it.kind.name), it.raw) }
+        }
         val elapsed = clock() - started
         response.fold(
-            onSuccess = { EcrResult.from(command, request, it, started, elapsed) },
+            onSuccess = { EcrResult.from(command, request, it, started, elapsed).copy(terminalFrames = frames) },
             onFailure = { error ->
                 EcrResult(
                     command = command,
@@ -83,6 +92,7 @@ class EcrLibraryClient(
                     fields = emptyMap(),
                     startedAtMs = started,
                     durationMs = elapsed,
+                    terminalFrames = frames,
                 )
             },
         )

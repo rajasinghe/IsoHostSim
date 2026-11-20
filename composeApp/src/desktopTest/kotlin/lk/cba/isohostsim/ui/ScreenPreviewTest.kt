@@ -28,6 +28,8 @@ import lk.cba.isohostsim.domain.service.ecr.EcrSimulatorService
 import lk.cba.isohostsim.ui.navigation.rememberNavigationController
 import lk.cba.isohostsim.ui.navigation.stateConfigs.ecr.EcrSimulatorConfig
 import lk.cba.isohostsim.ui.screens.ecrSimulator.EcrSimulatorScreen
+import lk.cba.isohostsim.domain.service.hostSimulatorService.profile.BuiltInHostProfile
+import lk.cba.isohostsim.ui.screens.config.hostSimulator.HostInstancesScreen
 import lk.cba.isohostsim.ui.screens.generic.MessageParserScreen
 import lk.cba.isohostsim.ui.screens.hostSimulator.HostQaBar
 import lk.cba.isohostsim.ui.screens.logcat.LogcatViewerScreen
@@ -67,6 +69,20 @@ class ScreenPreviewTest {
     @Test
     fun homeWide() = render("home-wide", width = 1920, height = 1000) {
         Shell { HomeScreen(viewModel = HomeScreenViewModel(), onToolSelected = {}) }
+    }
+
+    @Test
+    fun hostInstances() = render("host-instances") { //gimhan added
+        val state = remember {
+            lk.cba.isohostsim.ui.navigation.stateConfigs.UnifiedSimulatorState().apply {
+                hostConfigs.value = listOf(
+                    BuiltInHostProfile.newConfig("preview-1").apply { serverPort = 8000 },
+                    BuiltInHostProfile.newConfig("preview-2").apply { name = "Host 2"; serverPort = 8001 },
+                    BuiltInHostProfile.newConfig("preview-3").apply { name = "Fuel POS"; serverPort = 8001 },
+                )
+            }
+        }
+        Shell { HostInstancesScreen(appState = state, onOpen = {}) }
     }
 
     @Test

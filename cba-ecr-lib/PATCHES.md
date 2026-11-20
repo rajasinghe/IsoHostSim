@@ -61,6 +61,23 @@ original code. Nothing in the wire protocol was touched.
   The USB path has not been tested against a real terminal. Other request types (sale, void,
   last, etc.) still have their original waits.
 
+## 1d. Recording the frames the terminal sent (`TerminalFrames.java`)
+
+- **New** `TerminalFrames`: while a caller has called `TerminalFrames.begin()` on a thread, every
+  frame the library reads from the terminal on that thread is recorded as received (trailing NUL
+  padding removed); `TerminalFrames.end()` returns them. Kinds: `ACK` (the first reply, which
+  carries `bankName`, `bankCode` and `serialNo`), `FINAL` (the full reply, checksum included) and
+  `INVALID` (data the library rejected).
+- `Utility.LogWrite` calls `TerminalFrames.fromLog(logMessage)` first. Frames are taken from the
+  messages the library already logs right after each read ("Terminal ACK Response :",
+  "Terminal Process Response… :", "Terminal Response not valid :", "Terminal Final Response
+  Received data not valid… :").
+- Why: the library returns only the final reply without its checksum, and for USB Check Status a
+  rebuilt `{"dataType":"ACK"}`, so the ACK frame's bank name and serial number never reached the
+  caller. ISO8583Studio's ECR simulator shows the recorded frames unchanged.
+- Unchanged: return values, bytes sent and read, timeouts, error codes. With no recording started
+  it does nothing.
+
 ## 2. File paths
 
 - `Utility.java`: the five `"\\"` joins (log folder, daily log file, old-log delete, key file

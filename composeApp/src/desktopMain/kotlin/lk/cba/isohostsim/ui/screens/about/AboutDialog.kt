@@ -114,11 +114,7 @@ fun AboutDialog(
                         modifier = Modifier.padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(
-                            text = "ISO8583 Message Processing Studio",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
+
 
                         Spacer(modifier = Modifier.height(8.dp))
 

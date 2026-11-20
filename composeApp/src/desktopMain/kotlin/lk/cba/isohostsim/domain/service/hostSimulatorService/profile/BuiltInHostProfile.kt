@@ -32,8 +32,27 @@ object BuiltInHostProfile {
      */
     fun applyTo(cfg: GatewayConfig) {
         val port = cfg.serverPort
+        // An instance of the built-in profile keeps the name the tester gave it; a host still linked
+        // to an old profile file takes the profile's name. //gimhan added
+        val name = cfg.name.takeIf { cfg.profilePath == null && it.isNotBlank() }
         HostProfileLoader.applyTo(cfg, profile, null)
         if (port > 0) cfg.serverPort = port
+        if (name != null && name != profile.name) {
+            cfg.name = name
+            cfg.logFileName = instanceLogFile(cfg.logFileName, name) //gimhan added
+        }
+    }
+
+    /**
+     * Gives each instance its own log file, so instances running side by side don't write into one
+     * file: "logs/all-apps.log" becomes "logs/<instance name>.log". //gimhan added
+     */
+    private fun instanceLogFile(profileLog: String, instanceName: String): String {
+        val safe = instanceName.trim().replace(Regex("[^A-Za-z0-9._-]+"), "-").trim('-').ifEmpty { "host" }
+        val file = java.io.File(profileLog)
+        val ext = file.extension.ifEmpty { "log" }
+        val base = if (profile.logging.file.isBlank()) safe else "${file.nameWithoutExtension}-$safe"
+        return java.io.File(file.parentFile, "$base.$ext").absolutePath
     }
 
     /** Gives every server host the built-in profile, adding one when there is none. */

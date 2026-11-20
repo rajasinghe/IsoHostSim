@@ -2,6 +2,7 @@ package lk.cba.isohostsim.ecr
 
 import lk.cba.isohostsim.domain.service.ecr.EcrCodes
 import lk.cba.isohostsim.domain.service.ecr.EcrCommand
+import lk.cba.isohostsim.domain.service.ecr.EcrFrameKind
 import lk.cba.isohostsim.domain.service.ecr.EcrLibraryClient
 import lk.cba.isohostsim.domain.service.ecr.EcrOutcome
 import lk.cba.isohostsim.domain.service.ecr.EcrRequests
@@ -50,6 +51,25 @@ class EcrLibraryClientTest {
             assertEquals("10000", sent.getJSONObject("data").getString("amt"))
             assertEquals("LKR", sent.getJSONObject("data").getString("Currency"))
             assertTrue(sent.getString("checksum").isNotBlank(), "the library adds a checksum")
+        }
+    }
+
+    //gimhan added
+    @Test
+    fun `the terminal's frames are kept as received, ACK bank and serial included`() = runBlocking {
+        val ack = """{"dataType":"ACK","bankName":"HNB","bankCode":"7083","serialNo":"2841048495"}"""
+        FakeEcrTerminal { listOf(ack, approvedSale()) }.use { terminal ->
+            val request = EcrRequests.sale(EcrSaleFields(amt = "10000", ecrRef = "43"))
+
+            val result = EcrLibraryClient().execute(target(terminal.port), EcrCommand.SALE, request, timeoutSec = 10)
+
+            assertEquals(listOf(EcrFrameKind.ACK, EcrFrameKind.FINAL), result.terminalFrames.map { it.kind }, result.response)
+            assertEquals(ack, result.terminalFrames[0].raw)
+            assertEquals("HNB", result.terminalInfo["bankName"])
+            assertEquals("2841048495", result.terminalInfo["serialNo"])
+            // The library strips the checksum from what it returns; the frame keeps it.
+            kotlin.test.assertTrue(JSONObject(result.terminalFrames[1].raw).has("checksum"))
+            kotlin.test.assertFalse(JSONObject(result.response).has("checksum"))
         }
     }
 

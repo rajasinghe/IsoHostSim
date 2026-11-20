@@ -71,6 +71,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import lk.cba.isohostsim.domain.service.parser.IsoPacketDecoder
+import lk.cba.isohostsim.ui.screens.parser.ParserComparison
+import lk.cba.isohostsim.ui.screens.parser.ParserHandoff
+import androidx.compose.material.icons.filled.CompareArrows
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.size
 import lk.cba.isohostsim.domain.service.remoteHost.FilterPreset
 import lk.cba.isohostsim.domain.service.remoteHost.DEFAULT_OVERRIDE_PRESETS
 import lk.cba.isohostsim.domain.service.remoteHost.OverridePreset
@@ -485,8 +492,50 @@ internal fun TransactionsTable(client: HostFeed, emptyText: String = "No transac
         NoteBox(emptyText)
         return
     }
+    // Tick two received packets to open them side by side in the ISO8583 Parser. //gimhan added
+    var picked by remember { mutableStateOf(listOf<String>()) }
+    val pickedTxns = txns.filter { it.id in picked && !it.request?.hex.isNullOrBlank() }
+    Row(
+        Modifier.fillMaxWidth().padding(bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            when (pickedTxns.size) {
+                0 -> "Tick two received packets to compare them in the ISO8583 Parser."
+                1 -> "1 packet ticked. Tick one more to compare."
+                else -> "2 packets ticked."
+            },
+            color = posMuted(),
+            fontSize = 13.sp,
+            modifier = Modifier.weight(1f),
+        )
+        if (pickedTxns.isNotEmpty()) {
+            PosButton("Clear", { picked = emptyList() }, kind = PosButtonKind.Secondary)
+        }
+        PosButton(
+            "Compare selected",
+            {
+                val (earlier, later) = pickedTxns.sortedBy { it.createdAt }
+                ParserHandoff.compare(
+                    ParserComparison(
+                        firstHex = earlier.request!!.hex,
+                        secondHex = later.request!!.hex,
+                        firstLabel = "${earlier.mti ?: "?"} · ${time(earlier.createdAt)}" + (earlier.tid?.let { " · $it" } ?: ""),
+                        secondLabel = "${later.mti ?: "?"} · ${time(later.createdAt)}" + (later.tid?.let { " · $it" } ?: ""),
+                    )
+                )
+            },
+            icon = Icons.Default.CompareArrows,
+            enabled = pickedTxns.size == 2,
+        )
+    }
     PosCard(Modifier.fillMaxWidth(), padding = 0.dp) {
-        TxnRow(header = true, cells = listOf("Time", "Invoice", "Batch", "TID", "MID", "MTI", "Proc. code", "STAN", "RC", "ms", "Rule"))
+        TxnRow(
+            header = true,
+            cells = listOf("Time", "Invoice", "Batch", "TID", "MID", "MTI", "Proc. code", "STAN", "RC", "ms", "Rule"),
+            leading = {},
+        )
         txns.forEach { t ->
             Divider()
             Box(Modifier.fillMaxWidth().clickable { expanded = if (expanded == t.id) null else t.id }) {
@@ -497,7 +546,25 @@ internal fun TransactionsTable(client: HostFeed, emptyText: String = "No transac
                         t.stan ?: "-", "", t.durationMs.toString(), ruleLabel(t),
                     ),
                     rc = t.responseCode,
-                    highlighted = expanded == t.id,
+                    highlighted = expanded == t.id || t.id in picked,
+                    leading = {
+                        val canPick = !t.request?.hex.isNullOrBlank()
+                        val ticked = t.id in picked
+                        // Only two at a time: untick one to pick another.
+                        val enabled = canPick && (ticked || pickedTxns.size < 2)
+                        Icon(
+                            if (ticked) Icons.Default.CheckBox else Icons.Default.CheckBoxOutlineBlank,
+                            contentDescription = if (ticked) "Untick for comparing" else "Tick for comparing",
+                            tint = when {
+                                ticked -> MaterialTheme.colors.primary
+                                enabled -> posMuted()
+                                else -> posMuted().copy(alpha = 0.3f)
+                            },
+                            modifier = Modifier.size(20.dp).clickable(enabled = enabled, role = Role.Checkbox) {
+                                picked = if (ticked) picked - t.id else picked + t.id
+                            },
+                        )
+                    },
                 )
             }
             if (expanded == t.id) TxnDetail(t)
@@ -553,13 +620,20 @@ private val COLUMN_WIDTHS: List<Dp> = listOf(110.dp, 80.dp, 70.dp, 100.dp, 140.d
 private const val RC_COLUMN = 8
 
 @Composable
-private fun TxnRow(header: Boolean, cells: List<String>, rc: String? = null, highlighted: Boolean = false) {
+private fun TxnRow(
+    header: Boolean,
+    cells: List<String>,
+    rc: String? = null,
+    highlighted: Boolean = false,
+    leading: (@Composable () -> Unit)? = null, //gimhan added: the compare tick
+) {
     Row(
         Modifier.fillMaxWidth()
             .background(if (highlighted) posSunken() else MaterialTheme.colors.surface)
             .padding(horizontal = 16.dp, vertical = if (header) 10.dp else 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (leading != null) Box(Modifier.width(32.dp)) { leading() }
         cells.forEachIndexed { i, text ->
             val mod = if (i < COLUMN_WIDTHS.size) Modifier.width(COLUMN_WIDTHS[i]) else Modifier.weight(1f)
             Box(mod) {

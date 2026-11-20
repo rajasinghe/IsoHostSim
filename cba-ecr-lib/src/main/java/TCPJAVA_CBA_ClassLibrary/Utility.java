@@ -46,7 +46,10 @@ public class Utility {
     
         //tetsing log create based date
     public void LogWrite(String LogType, String ECRCommandType, String logMessage) {
-              
+        // ISO8583Studio patch: hand frames read from the terminal to TerminalFrames (no-op unless
+        // the app is recording this call). //gimhan added
+        TerminalFrames.fromLog(logMessage);
+
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
         Date date = new Date();
         String filename = dateFormat.format(date);

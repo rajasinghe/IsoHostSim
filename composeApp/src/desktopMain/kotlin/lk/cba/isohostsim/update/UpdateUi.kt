@@ -45,6 +45,19 @@ object UpdateController {
         }
     }
 
+    /**
+     * The installer is waiting for this process to end. Closing the window normally ends it, but a
+     * running simulator thread or a slow shutdown step can keep the JVM alive, leaving the old copy
+     * on screen while the new one starts. Make sure it ends: a normal exit (shutdown hooks still stop
+     * emulators) after a few seconds, and a hard stop if even that hangs.
+     */
+    private fun forceExitSoon() {
+        fun after(ms: Long, name: String, action: () -> Unit) =
+            Thread({ Thread.sleep(ms); action() }, name).apply { isDaemon = true }.start()
+        after(5_000, "update-exit") { kotlin.system.exitProcess(0) }
+        after(30_000, "update-halt") { Runtime.getRuntime().halt(0) }
+    }
+
     /** Downloads, verifies and hands off to the installer, then calls [exitApp]. */
     fun install(scope: CoroutineScope, available: UpdateService.CheckResult.Available, exitApp: () -> Unit) {
         if (busy) return
@@ -59,6 +72,7 @@ object UpdateController {
                 }
                 state = UpdateState.Installing(pkg)
                 withContext(Dispatchers.IO) { UpdateService.installAfterExit(file, available.kind) }
+                forceExitSoon()
                 exitApp()
             } catch (e: Exception) {
                 state = UpdateState.Failed(e.message ?: e::class.simpleName.orEmpty())

@@ -140,37 +140,71 @@ object UpdateService {
 
     // ---------------------------------------------------------------- Windows
 
-    private fun startWindowsInstall(msi: File, launcher: File, pid: Long, dir: File, log: File) {
+    private fun startWindowsInstall(msi: File, launcher: File, @Suppress("UNUSED_PARAMETER") pid: Long, dir: File, log: File) {
         val installDir = launcher.parentFile.absolutePath.trimEnd('\\')
         val script = File(dir, "install-update.cmd")
+        // One line per step, so a failed update can be diagnosed afterwards.
+        val steps = File(dir, "install-update-steps.log").apply { delete() }
+        val exe = launcher.absolutePath
         script.writeText(
             listOf(
                 "@echo off",
                 "rem Written by POS Testing Platform to install an update. Safe to delete.",
+                // Reopen this script in a minimised window, so a console doesn't pop up over the desktop.
+                "if not \"%~1\"==\"min\" ( start \"Updating POS Testing Platform\" /min \"%~f0\" min & exit /b )",
+                "set \"STEPS=${steps.absolutePath}\"",
+                ">>\"%STEPS%\" echo %date% %time% started",
+                // Wait until no copy of the app is running. Windows keeps a running program's .exe open
+                // for reading only, so opening it for writing fails until every copy has exited. This
+                // needs neither tasklist nor WMI, which can hang on a struggling machine. Opening for
+                // append and writing nothing leaves the file untouched.
+                "set /a waited=0",
                 ":wait",
-                "tasklist /FI \"PID eq $pid\" /NH | find \"$pid\" >nul",
-                "if not errorlevel 1 ( ping -n 2 127.0.0.1 >nul & goto wait )",
-                // The launcher process outlives the JVM by a moment.
-                "ping -n 3 127.0.0.1 >nul",
+                "2>nul ( >>\"$exe\" (call ) ) && goto closed",
+                "set /a waited+=1",
+                // Give up waiting after ~90 s: the installer's Restart Manager then closes what's left.
+                "if %waited% geq 90 ( >>\"%STEPS%\" echo %date% %time% app still open after 90 s, the installer will close it& goto install )",
+                "ping -n 2 127.0.0.1 >nul",
+                "goto wait",
+                ":closed",
+                ">>\"%STEPS%\" echo %date% %time% app closed",
+                ":install",
                 "msiexec /i \"${msi.absolutePath}\" INSTALLDIR=\"$installDir\" /passive /norestart /l*v \"${log.absolutePath}\"",
-                "start \"\" \"${launcher.absolutePath}\"",
+                // Redirect first: "code 0>>file" would be read as a redirect of stream 0.
+                ">>\"%STEPS%\" echo %date% %time% installer finished with code %errorlevel%",
+                "start \"\" \"$exe\"",
+                "exit",
             ).joinToString("\r\n", postfix = "\r\n"),
         )
+
         // The jpackage launcher runs the JVM inside a job object that kills every child process when
         // the app exits, so a plain ProcessBuilder child would die before it could install anything.
-        // A process created through WMI belongs to no job and survives the exit.
-        val cmdLine = "cmd.exe /c \"${script.absolutePath}\"".replace("'", "''")
-        val ps = "\$si = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ ShowWindow = [uint16]0 }; " +
-            "\$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = '$cmdLine'; ProcessStartupInformation = \$si }; " +
-            "exit [int]\$r.ReturnValue"
-        val encoded = Base64.getEncoder().encodeToString(ps.toByteArray(Charsets.UTF_16LE))
-        val proc = ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded)
-            .redirectErrorStream(true).start()
-        val output = proc.inputStream.bufferedReader().readText()
-        if (!proc.waitFor(60, TimeUnit.SECONDS) || proc.exitValue() != 0) {
-            proc.destroyForcibly()
-            throw IllegalStateException("Could not start the installer (${proc.exitValue()}): ${output.trim()}")
+        // Explorer opens the script from the desktop shell, outside that job. WMI is the fallback.
+        fun started(timeoutMs: Long): Boolean {
+            val deadline = System.currentTimeMillis() + timeoutMs
+            while (System.currentTimeMillis() < deadline) {
+                if (steps.isFile && steps.readText().contains("started")) return true
+                Thread.sleep(250)
+            }
+            return false
         }
+        runCatching { ProcessBuilder("explorer.exe", script.absolutePath).start() }
+        if (started(15_000)) return
+
+        runCatching {
+            val cmdLine = "cmd.exe /c \"${script.absolutePath}\"".replace("'", "''")
+            val ps = "\$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = '$cmdLine' }; " +
+                "exit [int]\$r.ReturnValue"
+            val encoded = Base64.getEncoder().encodeToString(ps.toByteArray(Charsets.UTF_16LE))
+            val proc = ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded)
+                .redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                .start()
+            // Never block the app on a hung WMI call.
+            if (!proc.waitFor(30, TimeUnit.SECONDS)) proc.destroyForcibly()
+        }
+        if (started(15_000)) return
+        throw IllegalStateException("Could not start the installer. You can run it yourself: ${msi.absolutePath}")
     }
 
     // ---------------------------------------------------------------- Linux

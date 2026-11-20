@@ -302,3 +302,36 @@ object PacketComparer {
             ComparedField(n, IsoPacketDecoder.fieldName(n), request[n], response[n])
         }
 }
+
+/** How one EMV tag in field 55 compares between the two packets. //gimhan added */
+data class ComparedTag(val tag: String, val name: String, val request: String?, val response: String?) {
+    val diff: FieldDiff
+        get() = when {
+            request == null -> FieldDiff.RESPONSE_ONLY
+            response == null -> FieldDiff.REQUEST_ONLY
+            request == response -> FieldDiff.SAME
+            else -> FieldDiff.CHANGED
+        }
+}
+
+/**
+ * Compares field 55 tag by tag. Tags keep the request's order, then the response-only ones in the
+ * response's order. A tag that appears more than once (two 71 scripts, say) is paired by occurrence.
+ * //gimhan added
+ */
+object EmvTagComparer {
+    fun compare(requestHex: String?, responseHex: String?): List<ComparedTag> {
+        fun keyed(hex: String?): List<Pair<String, IsoPacketDecoder.Tlv>> {
+            val seen = mutableMapOf<String, Int>()
+            return IsoPacketDecoder.tlv(hex.orEmpty()).map { t ->
+                val n = seen.merge(t.tag, 1, Int::plus)!!
+                "${t.tag}#$n" to t
+            }
+        }
+        val req = keyed(requestHex)
+        val res = keyed(responseHex).toMap()
+        val reqKeys = req.map { it.first }.toSet()
+        return req.map { (key, t) -> ComparedTag(t.tag, t.name, t.valueHex, res[key]?.valueHex) } +
+            keyed(responseHex).filter { it.first !in reqKeys }.map { (_, t) -> ComparedTag(t.tag, t.name, null, t.valueHex) }
+    }
+}

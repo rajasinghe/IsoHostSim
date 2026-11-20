@@ -272,7 +272,7 @@ fun HomeScreen(
                                 actionLabel = if (running != null) "Open monitor" else "Open",
                                 onAction = {
                                     if (running != null) SimulatorSessionManager.activateSession(running.id)
-                                    else onToolSelected(StudioTool.HOST_SIMULATOR)
+                                    else SimulatorSessionManager.launchSimulator(cfg) //gimhan added: opens this instance directly
                                 },
                                 divider = index < hostConfigs.lastIndex,
                             )

@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import lk.cba.isohostsim.domain.service.ecr.EcrCommand
+import lk.cba.isohostsim.domain.service.ecr.EcrFrameKind
 import lk.cba.isohostsim.domain.service.ecr.EcrOutcome
 import lk.cba.isohostsim.domain.service.ecr.EcrResult
 import lk.cba.isohostsim.domain.service.ecr.EcrRunState
@@ -467,12 +468,15 @@ private fun ResultCard(result: EcrResult) {
                 Text("${result.durationMs} ms", color = posMuted(), fontSize = 12.sp)
             }
             Text(result.message, style = MaterialTheme.typography.body2)
+            // The bank and serial number come in the terminal's ACK frame, which the library drops. //gimhan added
+            val terminalInfo = result.terminalInfo
             val keyFields = listOf(
+                "bankName" to "Bank", "bankCode" to "Bank code", "serialNo" to "Terminal serial no.",
                 "invoiceNo" to "Invoice", "appCode" to "Approval code", "referenceNo" to "RRN",
                 "pan" to "Card", "cardType" to "Card type", "amt" to "Amount", "currency" to "Currency",
                 "terminalId" to "Terminal ID", "merchantId" to "Merchant ID", "batchNo" to "Batch",
                 "traceNo" to "Trace", "ecrRef" to "ECR ref", "binReferenceNo" to "BIN reference",
-            ).mapNotNull { (k, label) -> result.fields[k]?.takeIf { it.isNotBlank() }?.let { label to it } }
+            ).mapNotNull { (k, label) -> (result.fields[k] ?: terminalInfo[k])?.takeIf { it.isNotBlank() }?.let { label to it } }
             if (keyFields.isNotEmpty()) {
                 Divider()
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
@@ -493,7 +497,32 @@ private fun ResultCard(result: EcrResult) {
                 }
             }
             Divider()
-            JsonBlock("Response", result.response)
+            TerminalReply(result)
+        }
+    }
+}
+
+/**
+ * What the terminal sent, frame by frame and unchanged (checksum included). Falls back to the
+ * library's result when no frame came back, as when the library gave up before the terminal
+ * answered. //gimhan added
+ */
+@Composable
+private fun TerminalReply(result: EcrResult) {
+    if (result.terminalFrames.isEmpty()) {
+        JsonBlock("Response (from the library; nothing came back from the terminal)", result.response)
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        result.terminalFrames.forEach { f ->
+            JsonBlock(
+                when (f.kind) {
+                    EcrFrameKind.ACK -> "Terminal ACK, as received"
+                    EcrFrameKind.FINAL -> "Terminal reply, as received"
+                    EcrFrameKind.INVALID -> "Data the library rejected, as received"
+                },
+                f.raw,
+            )
         }
     }
 }
@@ -520,7 +549,7 @@ private fun ExchangeLogTab(history: List<EcrResult>, onClear: () -> Unit) {
                             color = if (r.succeeded) SuccessGreen else ErrorRed,
                         )
                         r.request?.let { JsonBlock("Request (before the library adds its checksum)", it) }
-                        JsonBlock("Response", r.response)
+                        TerminalReply(r)
                     }
                 }
             }

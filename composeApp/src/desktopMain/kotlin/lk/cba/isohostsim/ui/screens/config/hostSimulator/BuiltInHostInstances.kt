@@ -21,45 +21,27 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.sp
-import lk.cba.isohostsim.ui.design.PosCard
-import lk.cba.isohostsim.ui.design.SectionTitle
-import lk.cba.isohostsim.ui.design.StatusChip
+import lk.cba.isohostsim.domain.service.remoteHost.RemoteHostStore
 import lk.cba.isohostsim.ui.design.posLine
 import lk.cba.isohostsim.ui.design.posMuted
 
 /**
- * The only configuration view for a Host Simulator. A server host answers from the profile built
- * into the app ([BuiltInHostProfile]); that profile is for developers, who change it in the source
- * and rebuild. This shows, read only, what it sets up.
+ * What the built-in profile ([BuiltInHostProfile]) sets up, read only. Every instance shares it;
+ * developers change it in the source and rebuild. //gimhan added: was the per-host Profile tab.
  */
 @Composable
-fun HostProfileTab(config: GatewayConfig, appState: UnifiedSimulatorState) {
-    Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        PosCard(Modifier.fillMaxWidth(), padding = 20.dp) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                SectionTitle(
-                    "Built-in profile · ${config.name}",
-                    "What this host answers is built into the app. Override replies from the Local Host screen while it runs.",
-                    modifier = Modifier.weight(1f),
-                )
-                StatusChip("Read only")
-            }
-        }
-
-        PosCard(Modifier.fillMaxWidth(), padding = 20.dp) {
-            SectionTitle("What it runs")
-            Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Summary("Type", "${config.gatewayType} · ${config.transmissionType}")
-                Summary("Listens on", "${config.serverConnectionType} ${config.serverAddress.ifBlank { "0.0.0.0" }}:${config.serverPort}")
-                Summary("Framing", "${config.messageLengthTypeSource} length · TPDU " + when {
-                    config.doNotUseHeaderSource -> "none"
-                    config.swapResponseTpdu -> "swapped from the request"
-                    else -> config.fixedResponseHeaderSource?.joinToString("") { "%02X".format(it) }?.ifEmpty { null } ?: "60 00 00 00 00"
-                })
-                Summary("Unmatched", config.unmatchedResponseCode?.let { "declined with $it" } ?: "connection closed")
-                Summary("Log file", config.logFileName)
-            }
-            Text("Transactions", style = MaterialTheme.typography.subtitle1, modifier = Modifier.padding(top = 20.dp, bottom = 4.dp))
+fun BuiltInProfileSummary(config: GatewayConfig) {
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Summary("Type", "${config.gatewayType} · ${config.transmissionType}")
+        Summary("Connection", "${config.serverConnectionType}, on the port each instance picks")
+        Summary("Framing", "${config.messageLengthTypeSource} length · TPDU " + when {
+            config.doNotUseHeaderSource -> "none"
+            config.swapResponseTpdu -> "swapped from the request"
+            else -> config.fixedResponseHeaderSource?.joinToString("") { "%02X".format(it) }?.ifEmpty { null } ?: "60 00 00 00 00"
+        })
+        Summary("Unmatched", config.unmatchedResponseCode?.let { "declined with $it" } ?: "connection closed")
+        Text("Transactions", style = MaterialTheme.typography.subtitle1, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
+        Column {
             config.simulatedTransactionsToSource.forEach { t ->
                 val fields = t.fields.orEmpty().indices.filter { t.fields!![it].isSet }.map { it + 1 }
                 Box(Modifier.fillMaxWidth().height(1.dp).background(posLine()))
@@ -91,10 +73,26 @@ private fun Summary(label: String, value: String) {
     }
 }
 
-/** Adds another server host that answers from the built-in profile, for example on another port. */
-fun addBuiltInHost(appState: UnifiedSimulatorState) {
+/**
+ * Adds an instance of the built-in profile with its own name and the next port after the highest
+ * one in use, so it can run beside the others straight away. //gimhan added
+ */
+fun addHostInstance(appState: UnifiedSimulatorState): GatewayConfig {
+    val hosts = appState.hostConfigs.value
     val config = BuiltInHostProfile.newConfig(appState.generateConfigId())
+    val ports = RemoteHostStore.load().localPorts
+    val highest = hosts.maxOfOrNull { ports[it.id]?.takeIf { p -> p > 0 } ?: it.serverPort } ?: 0
+    if (hosts.isNotEmpty()) config.name = nextInstanceName(hosts)
+    if (highest in 1..65534) config.serverPort = highest + 1
+    BuiltInHostProfile.applyTo(config)
     appState.addConfig(config)
     appState.selectConfig(config.id)
     appState.save()
+    return config
+}
+
+/** "Host 2", "Host 3", ...: the first such name no instance has yet. //gimhan added */
+fun nextInstanceName(hosts: List<GatewayConfig>): String {
+    val taken = hosts.map { it.name.trim().lowercase() }.toSet()
+    return generateSequence(2) { it + 1 }.map { "Host $it" }.first { it.lowercase() !in taken }
 }
