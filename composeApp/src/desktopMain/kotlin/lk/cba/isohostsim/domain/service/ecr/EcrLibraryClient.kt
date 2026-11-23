@@ -149,7 +149,7 @@ class EcrLibraryClient(
         /** System property the library reads for its log and key folder (see cba-ecr-lib/PATCHES.md). */
         const val LIBRARY_DIR_PROPERTY = "cba.ecr.dir"
 
-        /** Points the library's logs and key file at `~/.iso8583studio/ecr` unless already set. */
+        /** Points the library's logs and key file at `~/.pos-testing-platform/ecr` unless already set. */
         fun configureLibraryFolder() {
             if (System.getProperty(LIBRARY_DIR_PROPERTY).isNullOrBlank()) {
                 val dir = StudioPaths.ecrDir

@@ -34,7 +34,7 @@ class LogcatSelectionTest {
     private val message = "ALPHA BRAVO CHARLIE DELTA"
 
     init {
-        System.setProperty("iso8583studio.logcat.history", java.io.File(System.getProperty("java.io.tmpdir"), "logcat-test-history.txt").absolutePath)
+        System.setProperty("postestingplatform.logcat.history", java.io.File(System.getProperty("java.io.tmpdir"), "logcat-test-history.txt").absolutePath)
     }
 
     private fun entries() = mutableStateListOf(

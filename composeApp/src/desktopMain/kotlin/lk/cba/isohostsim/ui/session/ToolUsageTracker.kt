@@ -1,5 +1,7 @@
 package lk.cba.isohostsim.ui.session
 
+import lk.cba.isohostsim.data.StudioPaths
+
 import androidx.compose.runtime.mutableStateMapOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -10,11 +12,11 @@ import java.io.File
  * Tracks how often each StudioTool is opened and persists counts to disk.
  * Used by HomeScreenViewModel to build a dynamic "Quick Access" list.
  *
- * Storage: ~/.iso8583studio/tool_usage.properties (simple key=count format)
+ * Storage: ~/.pos-testing-platform/tool_usage.properties (simple key=count format)
  */
 object ToolUsageTracker {
 
-    private val prefsDir = File(System.getProperty("user.home"), ".iso8583studio")
+    private val prefsDir = StudioPaths.home
     private val prefsFile = File(prefsDir, "tool_usage.properties")
 
     /** Reactive map: toolName → openCount */

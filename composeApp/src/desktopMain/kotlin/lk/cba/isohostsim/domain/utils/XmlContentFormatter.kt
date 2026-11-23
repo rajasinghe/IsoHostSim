@@ -12,7 +12,7 @@ import javax.xml.parsers.DocumentBuilder
 import org.xml.sax.InputSource
 
 /**
- * XML Content Formatter for ISO8583Studio
+ * XML Content Formatter for POS Testing Platform
  * Provides comprehensive XML parsing, formatting, and manipulation capabilities
  */
 class XmlContentFormatter {
@@ -185,7 +185,7 @@ class XmlContentFormatter {
 
     /**
      * Convert ISO8583 data to XML format
-     * Useful for ISO8583Studio XML format support
+     * Useful for POS Testing Platform XML format support
      */
     fun convertIso8583ToXml(
         mti: String,

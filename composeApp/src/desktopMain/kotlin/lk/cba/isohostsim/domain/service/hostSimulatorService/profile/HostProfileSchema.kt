@@ -54,7 +54,7 @@ object HostProfileSchema {
     "logging": {
       "type": "object", "additionalProperties": false,
       "properties": {
-        "file": { "type": "string", "description": "Empty: ~/.iso8583studio/logs/<name>.log." },
+        "file": { "type": "string", "description": "Empty: ~/.pos-testing-platform/logs/<name>.log." },
         "maxSizeMB": { "type": "integer", "minimum": 1 },
         "rawData": { "type": "boolean" },
         "textData": { "type": "boolean" },

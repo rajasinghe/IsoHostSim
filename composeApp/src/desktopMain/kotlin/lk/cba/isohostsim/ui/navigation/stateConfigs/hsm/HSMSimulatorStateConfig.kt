@@ -1013,7 +1013,7 @@ data class HSMDeviceInfo(
     val operatingMode: OperatingMode = OperatingMode.MAINTENANCE,
     val supportedCommands: List<HsmCommand> = emptyList(),
     val capabilities: Set<HSMCapability> = setOf<HSMCapability>(),
-    val deviceName: String = "ISO8583Studio HSM Simulator",
+    val deviceName: String = "POS Testing Platform HSM Simulator",
     val manufacturerName: String = "Simulator",
     val modelName: String = "HSM-SIM-v1",
     val serialNumber: String = "HSM001234567890",

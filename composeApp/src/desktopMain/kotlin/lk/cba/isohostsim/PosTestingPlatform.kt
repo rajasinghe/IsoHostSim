@@ -55,8 +55,8 @@ import lk.cba.isohostsim.ui.session.GlobalSimulatorTabBar
 import lk.cba.isohostsim.ui.session.SimulatorSessionManager
 import lk.cba.isohostsim.ui.shell.AppSidebar
 import lk.cba.isohostsim.data.model.StudioTool
-import iso8583studio.composeapp.generated.resources.Res
-import iso8583studio.composeapp.generated.resources.app
+import lk.cba.isohostsim.resources.Res
+import lk.cba.isohostsim.resources.app
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay //gimhan added
 import lk.cba.isohostsim.update.UpdateController //gimhan added
@@ -76,7 +76,7 @@ enum class DialogType {
     SUCCESS, ERROR, NONE
 }
 
-class ISO8583Studio {
+class PosTestingPlatform {
 
     companion object {
         @JvmStatic
@@ -254,7 +254,7 @@ class ISO8583Studio {
                             isoCoroutine.launch {
                                 val file = FileExporter().exportFile(
                                     window = window,
-                                    fileName = "ISO8583Studio",
+                                    fileName = "PosTestingPlatform",
                                     fileExtension = "json",
                                     fileContent = appState.value.export().toByteArray(),
                                     fileDescription = "Configuration File"

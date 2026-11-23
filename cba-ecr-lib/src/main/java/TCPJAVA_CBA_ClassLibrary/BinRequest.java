@@ -6,7 +6,7 @@
 package TCPJAVA_CBA_ClassLibrary;
 
 import TCPJAVA_CBA_ClassLibrary.Communication.PaxPort;
-import TCPJAVA_CBA_ClassLibrary.Communication.PortMatch;   // ISO8583Studio patch
+import TCPJAVA_CBA_ClassLibrary.Communication.PortMatch;   // POS Testing Platform patch
 import com.fazecast.jSerialComm.SerialPort;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -145,7 +145,7 @@ public class BinRequest extends Utility {
 
             socket.setSoTimeout(1000);
 
-            // ISO8583Studio patch: the original always made one more read with a 1 s timeout here,
+            // POS Testing Platform patch: the original always made one more read with a 1 s timeout here,
             // so every BIN response came back ~1 s late. Skip it once a complete JSON object has
             // arrived, and otherwise keep reading (1 s of silence ends it, as before) until it is
             // complete. Encrypted (non-JSON) responses still get the original 1 s drain.
@@ -354,7 +354,7 @@ public class BinRequest extends Utility {
 
         ComPort = PaxPort.discover();   // shared port owner, port stays open so a cancel can use it
 
-        if (PortMatch.isUsablePortName(ComPort)) {   // ISO8583Studio patch: was ComPort.contains("COM")
+        if (PortMatch.isUsablePortName(ComPort)) {   // POS Testing Platform patch: was ComPort.contains("COM")
 
         } else {
             LogWrite("NormalLog", "RequestBin_USB", "Pax Com Port Not Found");
@@ -504,7 +504,7 @@ public class BinRequest extends Utility {
         int y = 0;
         int numRead = 0;
 
-        // ISO8583Studio patch: the original read once a second and then always slept 1 s before
+        // POS Testing Platform patch: the original read once a second and then always slept 1 s before
         // looking at the data, adding 1-2 s to every BIN response. Now the port is polled every
         // 100 ms, chunks are appended, and the loop ends as soon as a complete JSON object is in
         // the buffer, or 1 s after the first data arrived (the original wait, used for encrypted
@@ -584,7 +584,7 @@ public class BinRequest extends Utility {
             y++;
         }
 
-        if (!check1) {   // ISO8583Studio patch: was (y == intTo), which also flagged a response read on the last poll as a timeout
+        if (!check1) {   // POS Testing Platform patch: was (y == intTo), which also flagged a response read on the last poll as a timeout
 
             LogWrite("NormalLog", "RequestBin_USB", "Terminal Response Timeout");
             JSONObject TimeOutError = new JSONObject();

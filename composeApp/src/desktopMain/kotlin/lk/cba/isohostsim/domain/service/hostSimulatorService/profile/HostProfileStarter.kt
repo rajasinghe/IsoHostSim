@@ -29,7 +29,7 @@ object HostProfileStarter {
   },
 
   "logging": {
-    "file": "",                     // empty: ~/.iso8583studio/logs/<name>.log
+    "file": "",                     // empty: ~/.pos-testing-platform/logs/<name>.log
     "maxSizeMB": 10,
     "rawData": false,
     "textData": false,

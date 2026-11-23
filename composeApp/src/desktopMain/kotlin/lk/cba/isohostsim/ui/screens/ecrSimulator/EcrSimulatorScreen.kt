@@ -562,7 +562,7 @@ private fun LibraryLogTab(service: EcrSimulatorService) {
     val log by service.libraryLog.collectAsState()
     Column(Modifier.fillMaxSize().padding(12.dp)) {
         Text(
-            "Today's log from the CBA ECR library (~/.iso8583studio/ecr/PAX_EDC_ECR_logs). It shows the raw frames and timings.",
+            "Today's log from the CBA ECR library (~/.pos-testing-platform/ecr/PAX_EDC_ECR_logs). It shows the raw frames and timings.",
             style = MaterialTheme.typography.caption,
         )
         Spacer(Modifier.height(8.dp))

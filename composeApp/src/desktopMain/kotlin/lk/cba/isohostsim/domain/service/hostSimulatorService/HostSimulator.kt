@@ -1529,7 +1529,7 @@ class HostSimulator : Simulator {
          * About information
          */
         val aboutUs: String
-            get() = "ISO8583Studio"
+            get() = "POS Testing Platform"
 
         /**
          * Check license

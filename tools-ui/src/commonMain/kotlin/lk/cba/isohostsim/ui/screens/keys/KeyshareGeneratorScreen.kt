@@ -1,5 +1,7 @@
 package lk.cba.isohostsim.ui.screens.keys
 
+import lk.cba.isohostsim.compat.LegacyNames
+
 import lk.cba.isohostsim.ui.chrome.toolScroll
 
 import lk.cba.isohostsim.ui.chrome.ToolTab
@@ -131,7 +133,7 @@ private object KeyshareLogManager {
  * Key-share generation and combination. Shares are XOR components of the full key
  * (the usual TR-31/X9.24 "key component" convention). With ForceOdd parity, every DES/TDES
  * component and the combined key get odd parity. In the Secure tab each share is protected
- * with AES-128-CTR under a key derived from its PIN (SHA-256 of "iso8583studio-keyshare:" + PIN,
+ * with AES-128-CTR under a key derived from its PIN (SHA-256 of [LegacyNames.KEYSHARE_SALT] + PIN,
  * first 16 bytes, zero IV); this is a transport convenience for this tool, not a standard.
  */
 private object KeyshareCryptoService {
@@ -147,7 +149,7 @@ private object KeyshareCryptoService {
         else TdesCalculatorEngine.calculateKCV(key).toHexUpper()
     } catch (_: Exception) { "N/A" }
 
-    private fun pinKey(pin: String): ByteArray = Digests.sha256(("iso8583studio-keyshare:$pin").encodeToByteArray()).copyOf(16)
+    private fun pinKey(pin: String): ByteArray = Digests.sha256((LegacyNames.KEYSHARE_SALT + pin).encodeToByteArray()).copyOf(16)
 
     fun protect(share: ByteArray, pin: String): ByteArray = AesCalculatorEngine.encrypt(share, pinKey(pin), CipherMode.CTR, ByteArray(16))
     fun unprotect(protected: ByteArray, pin: String): ByteArray = AesCalculatorEngine.decrypt(protected, pinKey(pin), CipherMode.CTR, ByteArray(16))

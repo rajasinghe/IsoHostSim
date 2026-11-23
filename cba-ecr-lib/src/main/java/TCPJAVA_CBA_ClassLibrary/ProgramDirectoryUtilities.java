@@ -28,12 +28,12 @@ public class ProgramDirectoryUtilities extends Utility {
         return jarName.contains(".jar");
     }
 
-    // ISO8583Studio patch: system property that overrides the base folder for logs and the key file.
+    // POS Testing Platform patch: system property that overrides the base folder for logs and the key file.
     public static final String BASE_DIR_PROPERTY = "cba.ecr.dir";
 
     public String getProgramDirectory()
     {
-        // ISO8583Studio patch: -Dcba.ecr.dir=<folder> wins; otherwise the original jar-folder / cwd logic.
+        // POS Testing Platform patch: -Dcba.ecr.dir=<folder> wins; otherwise the original jar-folder / cwd logic.
         String overrideDir = System.getProperty(BASE_DIR_PROPERTY);
         if (overrideDir != null && !overrideDir.trim().isEmpty())
         {

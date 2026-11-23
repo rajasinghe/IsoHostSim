@@ -60,7 +60,7 @@ the previous result and shows the reason under the box.
 * **Ctrl+Space** or typing opens suggestions: keys first, then values drawn from the buffer (tags, threads).
   Up/Down move, Enter or Tab accepts, Esc closes.
 * Enter commits the query to the history (the clock icon). Recent queries are kept in
-  `~/.iso8583studio/logcat_history.txt`.
+  `~/.pos-testing-platform/logcat_history.txt`.
 * Right-click a line: copy it or its message, show only or hide its tag, show its level and above, show only
   its thread.
 * Click selects, Shift+click extends, Ctrl+A selects all, Ctrl+C copies the selected lines.

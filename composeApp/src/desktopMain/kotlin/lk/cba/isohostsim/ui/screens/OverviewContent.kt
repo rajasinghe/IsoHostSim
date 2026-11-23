@@ -129,7 +129,7 @@ private fun HeaderDashboard() {
             ) {
                 Column {
                     Text(
-                        "ISO8583 Studio",
+                        "POS Testing Platform",
                         style = MaterialTheme.typography.h4,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colors.primary

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-time setup of the in-app update server on an Ubuntu/Debian VM (e.g. an Azure VM). //gimhan added
 #
-# What it sets up: nginx, serving the files in /var/www/iso8583studio over plain HTTP. That folder
+# What it sets up: nginx, serving the files in /var/www/pos-testing-platform over plain HTTP. That folder
 # holds latest.json (which version is newest) and the installers. There is no application, database
 # or login on the server; the app only downloads files from it, and publishUpdate uploads them with scp.
 #
@@ -9,15 +9,15 @@
 #   ssh azureuser@<vm-ip> "sudo bash setup.sh"          # serves on port 80
 #   ssh azureuser@<vm-ip> "sudo bash setup.sh 8088"     # or another port, if 80 is taken
 #
-# Afterwards the app reads   http://<vm-ip>/iso8583studio/latest.json   (or http://<vm-ip>:8088/...).
+# Afterwards the app reads   http://<vm-ip>/pos-testing-platform/latest.json   (or http://<vm-ip>:8088/...).
 # In Azure, allow inbound TCP on that port in the VM's network security group.
 set -euo pipefail
 
 PORT="${1:-80}"
-DIR=/var/www/iso8583studio
+DIR=/var/www/pos-testing-platform
 # The account that publishes over scp; it must own the folder. Defaults to whoever ran sudo.
 PUBLISHER="${2:-${SUDO_USER:-azureuser}}"
-SITE=/etc/nginx/sites-available/iso8583studio
+SITE=/etc/nginx/sites-available/pos-testing-platform
 
 if [[ $EUID -ne 0 ]]; then echo "Run with sudo." >&2; exit 1; fi
 if ! [[ "$PORT" =~ ^[0-9]+$ ]]; then echo "Port must be a number, got '$PORT'." >&2; exit 1; fi
@@ -51,28 +51,28 @@ fi
 
 echo "==> Writing $SITE"
 cat > "$SITE" <<EOF
-# In-app updates for POS Testing Platform / ISO8583Studio. Written by deploy/update-server/setup.sh.
+# In-app updates for POS Testing Platform / POS Testing Platform. Written by deploy/update-server/setup.sh.
 server {
     listen $PORT default_server;
     listen [::]:$PORT default_server;
     server_name _;
     root /var/www;
 
-    location /iso8583studio/ {
+    location /pos-testing-platform/ {
         autoindex off;
         # Hide uploads that are still in progress.
         location ~ \.(part|tmp)\$ { return 404; }
         # latest.json changes with every release; never serve a cached copy.
-        location = /iso8583studio/latest.json { add_header Cache-Control "no-cache"; }
+        location = /pos-testing-platform/latest.json { add_header Cache-Control "no-cache"; }
     }
 
     location / { return 404; }
 }
 EOF
-ln -sf "$SITE" /etc/nginx/sites-enabled/iso8583studio
+ln -sf "$SITE" /etc/nginx/sites-enabled/pos-testing-platform
 if ! nginx -t; then
   # Leave nginx exactly as it was, so the other sites on this server keep working.
-  rm -f /etc/nginx/sites-enabled/iso8583studio "$SITE"
+  rm -f /etc/nginx/sites-enabled/pos-testing-platform "$SITE"
   echo "nginx rejected the new site; it has been removed again and nothing else was changed." >&2
   exit 1
 fi
@@ -97,12 +97,12 @@ Done. nginx is serving $DIR on port $PORT.
   1. In Azure: VM -> Networking -> add an inbound rule allowing TCP $PORT (if not already allowed).
 
   2. In the project's gradle.properties put:
-       updateSource=http://$IP$SUFFIX/iso8583studio
+       updateSource=http://$IP$SUFFIX/pos-testing-platform
        publishTo=$PUBLISHER@$IP:$DIR
 
   3. Publish a release from your PC:
        gradlew :composeApp:publishUpdate
 
   4. Check it from any machine:
-       curl http://$IP$SUFFIX/iso8583studio/latest.json
+       curl http://$IP$SUFFIX/pos-testing-platform/latest.json
 EOF

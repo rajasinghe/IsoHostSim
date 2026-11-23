@@ -30,7 +30,7 @@ import kotlin.test.assertEquals
  * PNG. The host answers from the built-in profile. Skipped unless LOCAL_HOST_REQUESTS and
  * SCREENSHOT_DIR are set:
  *   LOCAL_HOST_REQUESTS=../app-specs/test-tools/requests.tsv SCREENSHOT_DIR=/tmp/shots ./gradlew :composeApp:desktopTest --tests '*LocalHostScreenTest*'
- * It overwrites ~/.iso8583studio/remote_hosts.json, so back that file up first.
+ * It overwrites ~/.pos-testing-platform/remote_hosts.json, so back that file up first.
  */
 @OptIn(ExperimentalTestApi::class)
 class LocalHostScreenTest {

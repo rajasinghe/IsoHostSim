@@ -65,7 +65,7 @@ data class Destination(
 /** The old Log Settings tab. Parsed logging is always on: request matching depends on it. */
 @Serializable
 data class Logging(
-    /** Log file; empty means ~/.iso8583studio/logs/<name>.log. */
+    /** Log file; empty means ~/.pos-testing-platform/logs/<name>.log. */
     val file: String = "",
     val maxSizeMB: Int = 10,
     /** Also log each message's raw bytes. */

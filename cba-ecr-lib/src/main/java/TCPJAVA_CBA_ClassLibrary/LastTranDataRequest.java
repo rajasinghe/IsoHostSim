@@ -6,7 +6,7 @@
 package TCPJAVA_CBA_ClassLibrary;
 
 import TCPJAVA_CBA_ClassLibrary.Communication.PaxPort;
-import TCPJAVA_CBA_ClassLibrary.Communication.PortMatch;   // ISO8583Studio patch
+import TCPJAVA_CBA_ClassLibrary.Communication.PortMatch;   // POS Testing Platform patch
 import com.fazecast.jSerialComm.SerialPort;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
@@ -349,7 +349,7 @@ public class LastTranDataRequest extends Utility {
 
         ComPort = PaxPort.discover();   // shared port owner, port stays open so a cancel can use it
 
-        if (PortMatch.isUsablePortName(ComPort)) {   // ISO8583Studio patch: was ComPort.contains("COM")
+        if (PortMatch.isUsablePortName(ComPort)) {   // POS Testing Platform patch: was ComPort.contains("COM")
 
         } else {
 

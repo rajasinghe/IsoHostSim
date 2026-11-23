@@ -1,7 +1,7 @@
-# ISO8583Studio patches to TCPJAVA_CBA_ClassLibrary
+# POS Testing Platform patches to TCPJAVA_CBA_ClassLibrary
 
-Every change is marked in the source with `// ISO8583Studio patch:`
-(`grep -rn "ISO8583Studio patch" src/main`). On Windows each one behaves exactly as the
+Every change is marked in the source with `// POS Testing Platform patch:`
+(`grep -rn "POS Testing Platform patch" src/main`). On Windows each one behaves exactly as the
 original code. Nothing in the wire protocol was touched.
 
 ## 1. USB port matching (Linux device names)
@@ -38,7 +38,7 @@ original code. Nothing in the wire protocol was touched.
   have been shutdown or disconnected" until restart): the cached port is now also reused only if
   `port.bytesAvailable() >= 0` (jSerialComm returns -1 for a dead handle) and it has not been
   flagged with the new `PaxPort.markStale()`; otherwise it is closed and reopened.
-  ISO8583Studio's `EcrLibraryClient` calls `markStale()` after any USB NAK 17 (write failure) as
+  POS Testing Platform's `EcrLibraryClient` calls `markStale()` after any USB NAK 17 (write failure) as
   a backstop. Bytes sent to the terminal, timeouts and error codes are unchanged.
 
 ## 1c. BIN response returns as soon as it is complete (`BinRequest.java`)
@@ -74,7 +74,7 @@ original code. Nothing in the wire protocol was touched.
   Received data not valid… :").
 - Why: the library returns only the final reply without its checksum, and for USB Check Status a
   rebuilt `{"dataType":"ACK"}`, so the ACK frame's bank name and serial number never reached the
-  caller. ISO8583Studio's ECR simulator shows the recorded frames unchanged.
+  caller. POS Testing Platform's ECR simulator shows the recorded frames unchanged.
 - Unchanged: return values, bytes sent and read, timeouts, error codes. With no recording started
   it does nothing.
 

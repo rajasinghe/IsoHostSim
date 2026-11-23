@@ -69,7 +69,7 @@ data class APDUSimulatorConfig(
     val behaviorRules: List<BehaviorRule> = emptyList(),
     val enabledTestPlanIds: List<String> = emptyList(),
     val autoRunPlanId: String? = null,
-    /** Optional override for where custom JSON test plans live. Empty = ~/.iso8583studio/test-plans. */
+    /** Optional override for where custom JSON test plans live. Empty = ~/.pos-testing-platform/test-plans. */
     val customTestPlanDir: String = "",
 ) : SimulatorConfig
 

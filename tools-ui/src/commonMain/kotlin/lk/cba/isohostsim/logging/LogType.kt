@@ -130,7 +130,7 @@ object LogEntryFactory {
     // SYSTEM LOGS
     fun systemStarted() = LogEntryBuilder()
         .type(LogType.INFO)
-        .message("ISO8583Studio started successfully")
+        .message("POS Testing Platform started successfully")
         .source("System")
         .build()
 
@@ -444,7 +444,7 @@ object SampleLogEntries {
 
 
 
-// Suggested Color Palette for ISO8583Studio Theme
+// Suggested Color Palette for POS Testing Platform Theme
 object ISO8583Colors {
     // System Colors
     val InfoBlue = Color(0xFF42A5F5) // Blue 400

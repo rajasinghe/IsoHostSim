@@ -243,7 +243,7 @@ object ProcessRegistry {
             if (hookInstalled) return
             hookInstalled = true
             Runtime.getRuntime().addShutdownHook(
-                Thread({ stopAll(graceMs = 2_000L) }, "iso8583studio-process-reaper")
+                Thread({ stopAll(graceMs = 2_000L) }, "pos-testing-platform-process-reaper")
             )
         }
     }

@@ -114,7 +114,7 @@ data class MessageMetadata(
     val clientId: String? = null,
     val locationId: String? = null,
     val processingCode: String? = null,
-    val messageSource: String = "ISO8583Studio"
+    val messageSource: String = "POS Testing Platform"
 )
 
 /**
@@ -262,7 +262,7 @@ class RestEnabledGatewayHandler(
                 }
 
                 // Add standard headers
-                header("User-Agent", "ISO8583Studio/2.0")
+                header("User-Agent", "PosTestingPlatform/2.0")
                 header("Accept", restConfig.messageFormat.contentType)
             }
         }

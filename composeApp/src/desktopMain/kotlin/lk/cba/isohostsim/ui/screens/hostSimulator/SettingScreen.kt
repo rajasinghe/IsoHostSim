@@ -345,7 +345,7 @@ fun ISO8583SettingsScreen(
         isoCoroutine.launch {
             val file = FileExporter().exportFile(
                 window = gw.composeWindow,
-                fileName = "ISO8583Studio_Transactions",
+                fileName = "PosTestingPlatform_Transactions",
                 fileExtension = "json",
                 fileContent = Json.encodeToString(transactions.toList()).toByteArray(),
                 fileDescription = "Transaction Configuration File"

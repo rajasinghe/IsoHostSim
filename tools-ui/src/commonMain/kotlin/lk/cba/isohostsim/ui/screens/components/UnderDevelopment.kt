@@ -32,7 +32,7 @@ import androidx.compose.ui.window.DialogProperties
 import lk.cba.isohostsim.ui.SuccessGreen
 
 /**
- * Under Development Warning Composable for ISO8583Studio
+ * Under Development Warning Composable for POS Testing Platform
  * Shows various types of development status warnings
  */
 

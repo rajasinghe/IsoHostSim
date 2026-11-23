@@ -11,8 +11,8 @@ import kotlinx.serialization.json.Json
  *
  * ```json
  * {
- *   "msi": { "version": "1.1.1", "file": "ISO8583Studio-1.1.1.msi", "sha256": "…", "notes": "…" },
- *   "rpm": { "version": "1.1.0", "file": "iso8583studio-1.1.0-1.x86_64.rpm", "sha256": "…" }
+ *   "msi": { "version": "1.1.1", "file": "POS-Testing-Platform-1.1.1.msi", "sha256": "…", "notes": "…" },
+ *   "rpm": { "version": "1.1.0", "file": "pos-testing-platform-1.1.0-1.x86_64.rpm", "sha256": "…" }
  * }
  * ```
  * Written by the `publishUpdate` Gradle task; `file` is relative to the folder holding this file.

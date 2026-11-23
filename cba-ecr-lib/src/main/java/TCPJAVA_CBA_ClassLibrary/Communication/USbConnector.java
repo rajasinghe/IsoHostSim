@@ -25,7 +25,7 @@ public class USbConnector extends Utility implements Connector {
     }
 
     private String getPaxDevicePort() throws DeviceExceptions {
-        // ISO8583Studio patch: discovery (PAX description, forced port, Linux ttyACM/ttyUSB
+        // POS Testing Platform patch: discovery (PAX description, forced port, Linux ttyACM/ttyUSB
         // fallback) and the "COM" check both go through PaxPort/PortMatch.
         String comPort = PaxPort.discover();
         if(!PortMatch.isUsablePortName(comPort)){

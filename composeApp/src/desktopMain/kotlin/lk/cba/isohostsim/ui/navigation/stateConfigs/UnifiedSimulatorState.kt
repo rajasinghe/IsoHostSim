@@ -78,7 +78,7 @@ data class UnifiedSimulatorState(
     var connectionStatus: ConnectionStatus? = null,
     var window: ComposeWindow? = null
 ) {
-    private val name = "Iso8583Studio"
+    private val name = lk.cba.isohostsim.data.StudioPaths.SIMULATORS_NAME
 
     // JSON configuration with polymorphic serialization
     private val json = Json {

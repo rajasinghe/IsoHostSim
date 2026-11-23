@@ -1,13 +1,13 @@
-# ISO8583Studio
+# POS Testing Platform
 
-![ISO8583Studio](https://img.shields.io/badge/ISO8583-Studio-blue?style=for-the-badge)
+![POS Testing Platform](https://img.shields.io/badge/POS_Testing-Platform-blue?style=for-the-badge)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Multiplatform-7F52FF?style=for-the-badge&logo=kotlin)
 ![Compose](https://img.shields.io/badge/Compose-Desktop-4285F4?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-AGPL%20v3-green?style=for-the-badge)
 
 A professional desktop application for ISO8583 financial transaction processing, configuration, testing, and monitoring. Built with Kotlin Multiplatform and Compose Desktop for cross-platform compatibility.
 
-![ISO8583Studio Dashboard](docs/images/img.png)
+![POS Testing Platform Dashboard](docs/images/img.png)
 
 ## 📋 Table of Contents
 
@@ -25,7 +25,7 @@ A professional desktop application for ISO8583 financial transaction processing,
 
 ## 🎯 Overview
 
-ISO8583Studio is a comprehensive desktop application designed for financial institutions, payment processors, and developers working with ISO8583 messaging standards. It provides an intuitive interface for configuring gateways, testing transactions, and monitoring real-time activity.
+POS Testing Platform is a comprehensive desktop application designed for financial institutions, payment processors, and developers working with ISO8583 messaging standards. It provides an intuitive interface for configuring gateways, testing transactions, and monitoring real-time activity.
 
 ### Key Benefits
 - **Professional Grade**: Enterprise-ready solution for production environments
@@ -106,14 +106,14 @@ ISO8583Studio is a comprehensive desktop application designed for financial inst
 Build them from source: `./gradlew :composeApp:packageRpm` (Fedora), `:composeApp:packageDeb` (Debian/Ubuntu), or `packageMsi` / `packageExe` on Windows. They bundle their own Java runtime and are not code-signed.
 
 #### Updates (served from the Azure VM)
-Installed copies update themselves, so an installer is only handed out once. A few seconds after start-up the app reads `latest.json` from the update server. If that lists a newer version for its installer type (MSI, RPM or DEB), it offers **Update now**. Choosing it downloads the installer, checks its SHA-256, closes the app, runs the installer and reopens the app. Settings and saved configurations in `~/.iso8583studio` are kept. Users can also press **Check for updates** in Settings or About.
+Installed copies update themselves, so an installer is only handed out once. A few seconds after start-up the app reads `latest.json` from the update server. If that lists a newer version for its installer type (MSI, RPM or DEB), it offers **Update now**. Choosing it downloads the installer, checks its SHA-256, closes the app, runs the installer and reopens the app. Settings and saved configurations in `~/.pos-testing-platform` are kept. Users can also press **Check for updates** in Settings or About.
 
-The update server is plain nginx on the VM serving one folder, `/var/www/iso8583studio`. That folder holds `latest.json` and the installers; there is no application or database on the server.
+The update server is plain nginx on the VM serving one folder, `/var/www/pos-testing-platform`. That folder holds `latest.json` and the installers; there is no application or database on the server.
 
 ```
  your PC                        Azure VM (nginx)                            users' PCs
- publishUpdate ──scp──►  /var/www/iso8583studio/latest.json   ◄── http ──  app checks at start-up,
-                                               ISO8583Studio-1.1.1.msi             "Update now" installs it
+ publishUpdate ──scp──►  /var/www/pos-testing-platform/latest.json   ◄── http ──  app checks at start-up,
+                                               POS-Testing-Platform-1.1.1.msi             "Update now" installs it
 ```
 
 **One-time setup**
@@ -126,13 +126,19 @@ The update server is plain nginx on the VM serving one folder, `/var/www/iso8583
 2. In the Azure portal, allow inbound TCP on that port: VM → Networking → add inbound port rule.
 3. In `gradle.properties`, set where the app looks and where releases are uploaded (add `:8088` after the IP if you used another port):
    ```properties
-   updateSource=http://<vm-ip>/iso8583studio
-   publishTo=azureuser@<vm-ip>:/var/www/iso8583studio
+   updateSource=http://<vm-ip>/pos-testing-platform
+   publishTo=azureuser@<vm-ip>:/var/www/pos-testing-platform
    ```
-4. Build and publish, then hand out the installer once. People can download it from `http://<vm-ip>/iso8583studio/ISO8583Studio-<version>.msi`.
+4. Build and publish, then hand out the installer once. People can download it from `http://<vm-ip>/pos-testing-platform/POS-Testing-Platform-<version>.msi`.
    ```bash
    ./gradlew :composeApp:publishUpdate
    ```
+
+   Linux (Fedora family) users install the RPM with one command, and need their password for it:
+   ```bash
+   sudo dnf install http://<vm-ip>/pos-testing-platform/pos-testing-platform-<version>-1.x86_64.rpm
+   ```
+   Build the RPM on a Fedora machine with `rpmbuild` installed. Gradle 8.9 needs Java 17 to 21, so point `JAVA_HOME` at such a JDK if the system Java is newer. The publishing machine must reach the VM over SSH without a password prompt.
 
 **Every release after that**
 1. Raise `studioVersion` in `composeApp/build.gradle.kts`.
@@ -146,7 +152,7 @@ Upload uses your normal SSH key (`ssh azureuser@<vm-ip>` must work without a pas
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd Iso8583studio
+cd IsoHostSim
 
 # Build the project
 ./gradlew build
@@ -173,7 +179,7 @@ Module layout: `iso-core-lib` and `cryptocalc` are Kotlin Multiplatform (JVM + W
 ## 🏁 Quick Start
 
 ### 1. First Launch
-1. Download and run ISO8583Studio
+1. Download and run POS Testing Platform
 2. The application will open with a default configuration
 3. Navigate through the tabbed interface to explore features
 
@@ -610,7 +616,7 @@ grep "Processing time" iso8583.log
 1. **Clone Repository**
 ```bash
 git clone <repository-url>
-cd Iso8583studio
+cd IsoHostSim
 ```
 
 2. **Setup Development Environment**
@@ -667,7 +673,7 @@ When reporting issues, include:
 - Application Version: v1.2.3
 
 ## Steps to Reproduce
-1. Open ISO8583Studio
+1. Open POS Testing Platform
 2. Configure gateway as Server
 3. Start monitoring
 4. Send test transaction
@@ -688,7 +694,7 @@ Application crashes with NullPointerException
 
 This project is licensed under the GNU Affero General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
-The AGPL is a strong copyleft license: if you modify ISO8583Studio and distribute it, or make it available to users over a network, you must release your modified source under the same license. The full text is also available at <https://www.gnu.org/licenses/agpl-3.0.html>.
+The AGPL is a strong copyleft license: if you modify POS Testing Platform and distribute it, or make it available to users over a network, you must release your modified source under the same license. The full text is also available at <https://www.gnu.org/licenses/agpl-3.0.html>.
 
 ## 🙏 Acknowledgments
 
@@ -704,6 +710,6 @@ The AGPL is a strong copyleft license: if you modify ISO8583Studio and distribut
 
 ---
 
-**ISO8583Studio** - Professional Financial Transaction Processing Made Simple
+**POS Testing Platform** - Professional Financial Transaction Processing Made Simple
 
 *Built with ❤️ for the financial technology community*

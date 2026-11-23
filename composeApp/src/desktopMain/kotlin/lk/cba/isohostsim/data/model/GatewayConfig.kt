@@ -9,7 +9,7 @@ import lk.cba.isohostsim.domain.utils.MtiMapping
 import lk.cba.isohostsim.domain.utils.TPDUMapping
 import lk.cba.isohostsim.ui.navigation.stateConfigs.SimulatorType
 import lk.cba.isohostsim.ui.screens.hostSimulator.Transaction
-import iso8583studio.composeapp.generated.resources.Res
+import lk.cba.isohostsim.resources.Res
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XML
 

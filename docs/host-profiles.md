@@ -38,7 +38,7 @@ host binds to the Wi-Fi hotspot's address.
   // RS232: { "connection": "RS232", "serialPort": "/dev/ttyUSB0", "baudRate": 9600 }
   // PROXY only: "destination": { "address": "172.19.25.141", "port": 51837, "lengthHeader": "HEX_HL" },
   "logging": {
-    "file": "",                       // empty: ~/.iso8583studio/logs/<name>.log
+    "file": "",                       // empty: ~/.pos-testing-platform/logs/<name>.log
     "maxSizeMB": 10,
     "rawData": false,                 // also log raw bytes
     "textData": false,                // also log messages as text

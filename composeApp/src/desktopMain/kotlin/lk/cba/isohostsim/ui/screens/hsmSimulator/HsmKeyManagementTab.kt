@@ -78,7 +78,7 @@ data class ManagedKey(
 )
 
 // ═══════════════════════════════════════════════════════════════════════════════════
-// THEME COLORS - Matching ISO8583Studio Design System
+// THEME COLORS - Matching POS Testing Platform Design System
 // ═══════════════════════════════════════════════════════════════════════════════════
 
 object HsmKeyTheme {

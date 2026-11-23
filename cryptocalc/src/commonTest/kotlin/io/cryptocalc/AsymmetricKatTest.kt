@@ -137,11 +137,11 @@ class AsymmetricKatTest {
     @Test
     fun selfSignedCertificateAndCsr() {
         val kp = Ec.generateKeyPair(EcCurve.P256)
-        val dn = DistinguishedName(commonName = "test.local", organization = "ISO8583Studio", country = "IN")
+        val dn = DistinguishedName(commonName = "test.local", organization = "POS Testing Platform", country = "IN")
         val cert = X509.selfSignedCertificate(SigningKey.Ec(kp), dn, "SHA-256", notBeforeEpochSeconds = 1_760_000_000L, validityDays = 30)
         val pem = Der.toPem("CERTIFICATE", cert)
         val info = X509.parseCertificate(pem)
-        assertEquals("C=IN, O=ISO8583Studio, CN=test.local", info.subject)
+        assertEquals("C=IN, O=POS Testing Platform, CN=test.local", info.subject)
         assertEquals(info.subject, info.issuer)
         assertEquals("EC P-256", info.publicKeyAlgorithm)
         assertEquals(3, info.version)

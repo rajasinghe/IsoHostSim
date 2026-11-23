@@ -1,5 +1,7 @@
 package lk.cba.isohostsim.data.model
 
+import lk.cba.isohostsim.data.StudioPaths
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -31,12 +33,12 @@ private data class AppSettingsData(
 )
 
 /**
- * Global application settings, persisted to ~/.iso8583studio/app_settings.json.
+ * Global application settings, persisted to ~/.pos-testing-platform/app_settings.json.
  * All fields are reactive Compose state so UI recomposes on change.
  */
 object AppSettings {
 
-    private val prefsDir = File(System.getProperty("user.home"), ".iso8583studio")
+    private val prefsDir = StudioPaths.home
     private val prefsFile = File(prefsDir, "app_settings.json")
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 

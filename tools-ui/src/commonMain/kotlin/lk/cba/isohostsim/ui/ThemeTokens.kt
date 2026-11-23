@@ -24,7 +24,7 @@ val Purple40 = Color(0xFF6650a4)
 val PurpleGrey40 = Color(0xFF625b71)
 val Pink40 = Color(0xFF7D5260)
 
-// ISO8583Studio specific colors
+// POS Testing Platform specific colors
 val PrimaryBlue = Color(0xFF1e88e5)
 val PrimaryBlueLight = Color(0xFF6ab7ff)
 val PrimaryBlueDark = Color(0xFF005cb2)

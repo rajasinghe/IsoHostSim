@@ -5,7 +5,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * ISO8583Studio patch: records every frame the terminal sent during one library call, exactly as
+ * POS Testing Platform patch: records every frame the terminal sent during one library call, exactly as
  * received, so the app can show the whole reply. The library itself only returns the final reply
  * (without its checksum), and for USB Check Status a rebuilt {"dataType":"ACK"}; the ACK frame,
  * which carries bankName, bankCode and serialNo, was only written to the log.

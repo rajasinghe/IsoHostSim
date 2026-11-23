@@ -1,5 +1,7 @@
 package lk.cba.isohostsim.ui.screens.logcat
 
+import lk.cba.isohostsim.data.StudioPaths
+
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -82,8 +84,8 @@ object LogcatHistory {
     private const val MAX = 25
     /** Overridable so tests never write into the real home folder. */
     private val file: File
-        get() = System.getProperty("iso8583studio.logcat.history")?.let(::File)
-            ?: File(System.getProperty("user.home"), ".iso8583studio/logcat_history.txt")
+        get() = System.getProperty("postestingplatform.logcat.history")?.let(::File)
+            ?: File(StudioPaths.home, "logcat_history.txt")
 
     fun load(): List<String> = try {
         if (file.exists()) file.readLines().filter { it.isNotBlank() }.take(MAX) else emptyList()

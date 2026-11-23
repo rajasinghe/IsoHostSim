@@ -273,7 +273,7 @@ class GatewayClient {
     constructor()
 
     companion object {
-        val aboutUs: String = "ISO8583Studio"
+        val aboutUs: String = "POS Testing Platform"
     }
 
     fun doReadAsynchronous() {

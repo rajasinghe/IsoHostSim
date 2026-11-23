@@ -61,7 +61,7 @@ enum class ProfileOrigin(val label: String) {
 data class SkinRef(
     val kind: SkinKind = SkinKind.NONE,
     val name: String = "",
-    /** Absolute. For [SkinKind.CUSTOM] this points at our managed copy under ~/.iso8583studio. */
+    /** Absolute. For [SkinKind.CUSTOM] this points at our managed copy under ~/.pos-testing-platform. */
     val path: String = "",
     val showDeviceFrame: Boolean = true,
     val dynamic: Boolean = false,

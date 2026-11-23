@@ -16,18 +16,18 @@ import java.util.concurrent.TimeUnit
 /**
  * Finds, downloads and installs a newer build published to the update share.
  *
- * The share is either a folder (a UNC path such as `\\server\share\ISO8583Studio`, or a mounted
+ * The share is either a folder (a UNC path such as `\\server\share\PosTestingPlatform`, or a mounted
  * folder on Linux) or an http(s) URL. It holds `latest.json` and the installers next to it; the
  * `publishUpdate` Gradle task writes both.
  *
  * Installing hands off to a small script that waits for this process to exit, runs the native
  * installer (MSI per-user upgrade on Windows, dnf/apt through pkexec on Linux) and starts the app
- * again. The installer is what replaces the files, so settings in `~/.iso8583studio` are untouched.
+ * again. The installer is what replaces the files, so settings in `~/.pos-testing-platform` are untouched.
  */
 object UpdateService {
 
     /** Environment override, handy for testing a build against a different share. */
-    const val SOURCE_ENV = "ISO8583STUDIO_UPDATE_SOURCE"
+    const val SOURCE_ENV = "POS_TESTING_PLATFORM_UPDATE_SOURCE"
 
     val currentVersion: String get() = BuildInfo.VERSION
 
@@ -87,7 +87,7 @@ object UpdateService {
     }
 
     /**
-     * Copies the installer into `~/.iso8583studio/updates`, checking its SHA-256 against the
+     * Copies the installer into `~/.pos-testing-platform/updates`, checking its SHA-256 against the
      * manifest so a half-copied or corrupted file is never run.
      */
     fun download(pkg: UpdatePackage, onProgress: (copied: Long, total: Long) -> Unit = { _, _ -> }): File {

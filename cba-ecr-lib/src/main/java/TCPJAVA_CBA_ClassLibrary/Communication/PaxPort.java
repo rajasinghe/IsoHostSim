@@ -39,22 +39,22 @@ public class PaxPort {
     private PaxPort() {
     }
 
-    // ISO8583Studio patch: optional forced port (e.g. "/dev/ttyACM0" or "COM5"); null/empty = auto-discover.
+    // POS Testing Platform patch: optional forced port (e.g. "/dev/ttyACM0" or "COM5"); null/empty = auto-discover.
     private static volatile String preferredPortName = null;
 
-    // ISO8583Studio patch: force discover() to return this port name. Pass null or "" to go back to auto-discovery.
+    // POS Testing Platform patch: force discover() to return this port name. Pass null or "" to go back to auto-discovery.
     public static void setPreferredPortName(String name) {
         preferredPortName = (name == null || name.trim().isEmpty()) ? null : name.trim();
     }
 
-    // ISO8583Studio patch
+    // POS Testing Platform patch
     public static String getPreferredPortName() {
         return preferredPortName;
     }
 
     /** @return the COM port name of the PAX device, or an empty string when it is not present. */
     public static String discover() {
-        // ISO8583Studio patch: a forced port wins over discovery.
+        // POS Testing Platform patch: a forced port wins over discovery.
         String preferred = preferredPortName;
         if (preferred != null) {
             return preferred;
@@ -66,7 +66,7 @@ public class PaxPort {
                 comPort = candidate.getSystemPortName();
             }
         }
-        // ISO8583Studio patch: on Linux the PAX description is not reported, so fall back to
+        // POS Testing Platform patch: on Linux the PAX description is not reported, so fall back to
         // the lowest-numbered ttyACM*/ttyUSB* port (see PortMatch.pickLinuxPort). Only reached
         // when no PAX-described port exists, so Windows discovery is unchanged.
         if (comPort.isEmpty()) {
@@ -90,11 +90,11 @@ public class PaxPort {
     public static SerialPort acquire(String comPort) {
         synchronized (portLock) {
             if (port != null && port.isOpen()) {
-                // ISO8583Studio patch: reuse only while the cached port is still the discovered device.
+                // POS Testing Platform patch: reuse only while the cached port is still the discovered device.
                 // After an unplug/replug the device can come back under a new name (Linux: ttyACM0 ->
                 // ttyACM1 while the old handle is held; Windows: a different COM number), so close the
                 // stale handle and open the new one. Same name -> original behaviour (reuse).
-                // ISO8583Studio patch: a handle whose device was unplugged still reports isOpen(), and
+                // POS Testing Platform patch: a handle whose device was unplugged still reports isOpen(), and
                 // when the device comes back under the same name every write fails with "port appears
                 // to have been shutdown or disconnected". bytesAvailable() returns -1 on such a dead
                 // handle, so only reuse a port that still answers it.
@@ -141,11 +141,11 @@ public class PaxPort {
         }
     }
 
-    // ISO8583Studio patch: set by markStale(); the next acquire() closes and reopens the port.
+    // POS Testing Platform patch: set by markStale(); the next acquire() closes and reopens the port.
     private static volatile boolean stale = false;
 
     /**
-     * ISO8583Studio patch: flag the open port as dead (e.g. after a write failure) so the next
+     * POS Testing Platform patch: flag the open port as dead (e.g. after a write failure) so the next
      * acquire() closes it and opens the device again, without disturbing a command in progress.
      */
     public static void markStale() {

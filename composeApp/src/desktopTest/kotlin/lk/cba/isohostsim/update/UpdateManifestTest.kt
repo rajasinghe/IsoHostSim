@@ -23,8 +23,8 @@ class UpdateManifestTest {
         val m = UpdateManifest.parse(
             """
             {
-              "msi": { "version": "1.1.1", "file": "ISO8583Studio-1.1.1.msi", "sha256": "ab", "notes": "Fixes" },
-              "rpm": { "version": "1.1.0", "file": "iso8583studio-1.1.0-1.x86_64.rpm", "sha256": "cd" },
+              "msi": { "version": "1.1.1", "file": "POS-Testing-Platform-1.1.1.msi", "sha256": "ab", "notes": "Fixes" },
+              "rpm": { "version": "1.1.0", "file": "pos-testing-platform-1.1.0-1.x86_64.rpm", "sha256": "cd" },
               "future": { "ignored": true }
             }
             """.trimIndent(),

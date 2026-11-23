@@ -32,7 +32,7 @@ class LogcatSnapshotTest {
     private val outDir: File? = System.getenv("LOGCAT_SNAPSHOT_DIR")?.takeIf { it.isNotBlank() }?.let(::File)
 
     init {
-        System.setProperty("iso8583studio.logcat.history", File(System.getProperty("java.io.tmpdir"), "logcat-test-history.txt").absolutePath)
+        System.setProperty("postestingplatform.logcat.history", File(System.getProperty("java.io.tmpdir"), "logcat-test-history.txt").absolutePath)
     }
 
     private fun entry(

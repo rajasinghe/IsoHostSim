@@ -46,7 +46,7 @@ public class Utility {
     
         //tetsing log create based date
     public void LogWrite(String LogType, String ECRCommandType, String logMessage) {
-        // ISO8583Studio patch: hand frames read from the terminal to TerminalFrames (no-op unless
+        // POS Testing Platform patch: hand frames read from the terminal to TerminalFrames (no-op unless
         // the app is recording this call). //gimhan added
         TerminalFrames.fromLog(logMessage);
 
@@ -59,14 +59,14 @@ public class Utility {
         
         ProgramDirectoryUtilities programDirectoryUtilities = new ProgramDirectoryUtilities();
         String AbsolutePath = programDirectoryUtilities.getProgramDirectory();
-        String folderPath = AbsolutePath + File.separator + foldername;   // ISO8583Studio patch: was "\\"
+        String folderPath = AbsolutePath + File.separator + foldername;   // POS Testing Platform patch: was "\\"
             
         File directory = new File(folderPath);
         if (! directory.exists()){
             directory.mkdir();
         }
                      
-        String FILENAME = folderPath + File.separator + filenametext;   // ISO8583Studio patch: was "\\"
+        String FILENAME = folderPath + File.separator + filenametext;   // POS Testing Platform patch: was "\\"
         
         if (LogType.equals("LogStart")) {
 
@@ -99,7 +99,7 @@ public class Utility {
             String deleteFileName = dateFormat.format(cal.getTime());
             String deleteFileNameText = deleteFileName + ".txt";
             
-            String deleteFilePath = folderPath + File.separator + deleteFileNameText;   // ISO8583Studio patch: was "\\"
+            String deleteFilePath = folderPath + File.separator + deleteFileNameText;   // POS Testing Platform patch: was "\\"
             
             try {
                 
@@ -254,7 +254,7 @@ public class Utility {
         String filename = "PAX_EDC_ECR_Key.log";
         ProgramDirectoryUtilities programDirectoryUtilities = new ProgramDirectoryUtilities();
         String AbsolutePath = programDirectoryUtilities.getProgramDirectory();
-        String FILENAME = AbsolutePath + File.separator + filename;   // ISO8583Studio patch: was "\\"
+        String FILENAME = AbsolutePath + File.separator + filename;   // POS Testing Platform patch: was "\\"
 
         BufferedWriter bw = null;
         FileWriter fw = null;
@@ -318,7 +318,7 @@ public class Utility {
         String filename = "PAX_EDC_ECR_Key.log";
         ProgramDirectoryUtilities programDirectoryUtilities = new ProgramDirectoryUtilities();
         String AbsolutePath = programDirectoryUtilities.getProgramDirectory();
-        String FILENAME = AbsolutePath + File.separator + filename;   // ISO8583Studio patch: was "\\"
+        String FILENAME = AbsolutePath + File.separator + filename;   // POS Testing Platform patch: was "\\"
 
         File file = new File(FILENAME);
         RandomAccessFile fileHandler = null;

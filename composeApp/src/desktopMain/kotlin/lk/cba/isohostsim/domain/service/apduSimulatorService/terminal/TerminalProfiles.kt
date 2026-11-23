@@ -16,7 +16,7 @@ object TerminalProfiles {
         transactionCurrencyExp = 2,
         ifdSerialNumber = "STUDIO01",
         merchantCategoryCode = "5411",
-        merchantId = "ISO8583STUDIO  ",
+        merchantId = "POSTESTPLATFORM",
         terminalIdentification = "TRM00001",
         perAid = listOf(
             visaAidConfig(),

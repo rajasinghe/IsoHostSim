@@ -1,7 +1,7 @@
 package TCPJAVA_CBA_ClassLibrary.Communication;
 
 /**
- * ISO8583Studio patch: pure helpers that decide whether a serial port is the
+ * POS Testing Platform patch: pure helpers that decide whether a serial port is the
  * PAX terminal. Windows behaviour is unchanged (the PAX description and the
  * "COM" name check are exactly what the original code tested); Linux device
  * names (ttyACM* / ttyUSB*, with or without /dev/) are accepted in addition.
