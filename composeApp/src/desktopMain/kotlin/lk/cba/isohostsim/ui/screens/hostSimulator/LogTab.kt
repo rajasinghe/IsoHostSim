@@ -106,7 +106,8 @@ fun LogTab(
     label: String? = null,
     onClearClick: () -> Unit,
     connectionCount: Int,
-    concurrentConnections: Int,
+    /** Open connections right now, shown as "Active"; null hides it where the count means nothing. */
+    concurrentConnections: Int? = null,
     bytesIncoming: Long,
     bytesOutgoing: Long,
     logEntries: SnapshotStateList<LogEntry>, // Live tail; full history comes from [history]
@@ -165,12 +166,14 @@ fun LogTab(
                         color = MaterialTheme.colors.primary
                     )
 
-                    FloatingStatItem(
-                        icon = Icons.Default.NetworkPing,
-                        value = concurrentConnections.toString(),
-                        label = "Active",
-                        color = Color(0xFF00BCD4)
-                    )
+                    if (concurrentConnections != null) {
+                        FloatingStatItem(
+                            icon = Icons.Default.NetworkPing,
+                            value = concurrentConnections.toString(),
+                            label = "Active",
+                            color = Color(0xFF00BCD4)
+                        )
+                    }
 
                     FloatingStatItem(
                         icon = Icons.Default.ArrowDownward,

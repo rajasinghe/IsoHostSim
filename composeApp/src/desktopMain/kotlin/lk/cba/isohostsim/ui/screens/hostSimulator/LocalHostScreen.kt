@@ -140,12 +140,12 @@ fun LocalHostScreen(gw: HostSimulator, onBack: () -> Unit, onSaveClick: () -> Un
             firewall = if (h != null && port != null) ListenChecks.firewall(h.iface, port) else null
         }
     }
-    // While running: the hotspot as started, connected terminals, and expired overrides dropped.
-    var connected by remember { mutableStateOf(0) }
+    // While running: the hotspot as started, and expired overrides dropped. There is no count of
+    // connected terminals: most terminals open a connection per transaction and close it straight
+    // after, so an open-socket count says nothing about which devices are using the host.
     LaunchedEffect(running) {
         if (running) hotspot = withContext(Dispatchers.IO) { ListenChecks.hotspot() }
         while (running) {
-            connected = gw.activeClients.size
             state.prune()
             delay(1000)
         }
@@ -261,7 +261,7 @@ fun LocalHostScreen(gw: HostSimulator, onBack: () -> Unit, onSaveClick: () -> Un
             }
 
             Column(Modifier.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                RunningStrip(connectAddress, port ?: config.serverPort, hotspot, connected, config.name)
+                RunningStrip(connectAddress, port ?: config.serverPort, hotspot, config.name)
                 PosCard(Modifier.fillMaxWidth(), padding = 16.dp) {
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         LabeledField("Terminal ID (F41)", tidText, { tidText = it }, Modifier.width(200.dp), onDone = ::applyFilter)
@@ -311,7 +311,6 @@ fun LocalHostScreen(gw: HostSimulator, onBack: () -> Unit, onSaveClick: () -> Un
                             connectionCount = gw.connectionCount.get(),
                             bytesIncoming = gw.bytesIncoming.get().toLong(),
                             bytesOutgoing = gw.bytesOutgoing.get().toLong(),
-                            concurrentConnections = connected,
                         )
                     }
                     LocalTab.OVERRIDES -> OverridesTab(
@@ -470,7 +469,7 @@ private fun AddressBox(address: String, large: Boolean) {
 // ---------- running ----------
 
 @Composable
-private fun RunningStrip(address: String, port: Int, hotspot: ListenChecks.Hotspot?, connected: Int, profileName: String) {
+private fun RunningStrip(address: String, port: Int, hotspot: ListenChecks.Hotspot?, profileName: String) {
     PosCard(Modifier.fillMaxWidth(), padding = 14.dp) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
             Column {
@@ -478,7 +477,6 @@ private fun RunningStrip(address: String, port: Int, hotspot: ListenChecks.Hotsp
                 AddressBox(if (hotspot != null) "$address:$port" else "port $port", large = false)
             }
             Fact("Network", hotspot?.let { "Wi-Fi hotspot · ${it.iface}" } ?: "Every network (hotspot off)")
-            Fact("Connected now", if (connected == 1) "1 terminal" else "$connected terminals")
             Fact("Host config", profileName)
             Spacer(Modifier.weight(1f))
             Text("Stop the host to change the port", fontSize = 13.sp, color = posMuted())
