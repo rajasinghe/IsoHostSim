@@ -14,7 +14,7 @@ plugins {
 }
 
 // Single source of truth for the app version (installers, About, saved configs).
-val studioVersion = "1.1.2"
+val studioVersion = "1.1.3"
 
 // Where installed copies look for updates: a folder (\\server\share\PosTestingPlatform) or an http(s)
 // address holding latest.json. Set it in gradle.properties or with -PupdateSource=...; users can
