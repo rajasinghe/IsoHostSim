@@ -1,7 +1,7 @@
 package TCPJAVA_CBA_ClassLibrary;
 
 /**
- * ISO8583Studio patch: tells whether a terminal response received so far is one complete
+ * POS Testing Platform patch: tells whether a terminal response received so far is one complete
  * JSON object, so a read loop can stop as soon as the whole message has arrived instead of
  * always waiting a further fixed second. Pure, no I/O.
  */

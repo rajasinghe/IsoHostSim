@@ -1,5 +1,7 @@
 package lk.cba.isohostsim.ui.screens.hsmCommand
 
+import lk.cba.isohostsim.data.StudioPaths
+
 import lk.cba.isohostsim.domain.service.hsmCommandService.HsmCommandClientService
 import java.io.File
 import java.time.LocalDateTime
@@ -7,14 +9,14 @@ import java.time.format.DateTimeFormatter
 
 /**
  * Builds the same strings shown in the Console Request/Response (and Raw / Parsed) areas,
- * and appends them to a session log file under `~/.iso8583studio/logs/`.
+ * and appends them to a session log file under `~/.pos-testing-platform/logs/`.
  */
 object HsmCommandExchangeLog {
 
     private val fileTimestamp = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS")
 
     private fun logDirectory(): File {
-        val dir = File(System.getProperty("user.home"), ".iso8583studio/logs")
+        val dir = File(StudioPaths.home, "logs")
         dir.mkdirs()
         return dir
     }

@@ -233,7 +233,7 @@ object SimulatorSessionManager {
 
         poppedOutSessionIds.remove(sessionId)
 
-        // Removing the session causes the key() block in ISO8583Studio.kt to dispose,
+        // Removing the session causes the key() block in PosTestingPlatform.kt to dispose,
         // which triggers DisposableEffect inside HsmSimulatorScreen / HostSimulatorScreen.
         sessions.removeAll { it.id == sessionId }
 

@@ -1,5 +1,7 @@
 package lk.cba.isohostsim.domain.store
 
+import lk.cba.isohostsim.data.StudioPaths
+
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 import java.nio.file.Files
@@ -82,8 +84,8 @@ open class JsonDirStore<T : Any>(
     private fun pathFor(id: String): Path = dir.resolve("$id.json")
 
     companion object {
-        /** Everything this app persists lives under `~/.iso8583studio/`. */
+        /** Everything this app persists lives under `~/.pos-testing-platform/`. */
         fun appDir(vararg segments: String): Path =
-            Path.of(System.getProperty("user.home"), ".iso8583studio", *segments)
+            segments.fold(StudioPaths.home.toPath()) { p, s -> p.resolve(s) }
     }
 }

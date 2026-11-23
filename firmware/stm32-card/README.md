@@ -3,7 +3,7 @@
 ## Purpose
 
 This firmware turns a STM32 Nucleo-L432KC into an ISO/IEC 7816-3 contact smart
-card. A host PC, running the Iso8583Studio simulator, drives APDUs over a
+card. A host PC, running the POS Testing Platform simulator, drives APDUs over a
 USB-CDC virtual serial port. The firmware bridges those APDUs onto the physical
 ISO 7816 contacts via the XCRFID 4-in-1 SIM/smart-card pinboard, so any external
 smart-card terminal connected to the pinboard sees the firmware as a card. The

@@ -222,7 +222,7 @@ data class FilterPreset(val name: String, val tid: String = "", val mid: String 
     fun toFilter(): TerminalFilter = TerminalFilter(tid, mid)
 }
 
-/** Saved in ~/.iso8583studio/remote_hosts.json, beside the app's other settings. */
+/** Saved in ~/.pos-testing-platform/remote_hosts.json, beside the app's other settings. */
 object RemoteHostStore {
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true; encodeDefaults = true }
     private val file: File get() = File(StudioPaths.home, "remote_hosts.json")

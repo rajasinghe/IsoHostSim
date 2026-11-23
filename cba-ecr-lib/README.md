@@ -1,7 +1,7 @@
 # cba-ecr-lib
 
 The company's Java ECR class library (`TCPJAVA_CBA_ClassLibrary`), the same library the
-Swing ECR demo uses, vendored as source so ISO8583Studio's ECR Simulator can drive a PAX
+Swing ECR demo uses, vendored as source so POS Testing Platform's ECR Simulator can drive a PAX
 terminal over **TCP** and **USB** on Linux as well as Windows.
 
 ## Origin
@@ -21,7 +21,7 @@ terminal over **TCP** and **USB** on Linux as well as Windows.
 Unchanged. Request names (`sale`, `void`, `settleRequest`, `active`, ...), the SHA-256
 checksum, ACK/NAK handling, buffer sizes, timeouts and error codes are exactly as in the
 original source. The only edits are the Linux portability patches listed in
-[PATCHES.md](PATCHES.md), each marked in the code with `// ISO8583Studio patch:`.
+[PATCHES.md](PATCHES.md), each marked in the code with `// POS Testing Platform patch:`.
 
 ## Using it
 

@@ -1,5 +1,7 @@
 package lk.cba.isohostsim.ui.screens.apduSimulator.v2
 
+import lk.cba.isohostsim.data.StudioPaths
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -82,7 +84,7 @@ fun ApduSimulatorV2Screen(
 ) {
     val scope = rememberCoroutineScope()
     val store = remember {
-        val dir = Paths.get(System.getProperty("user.home"), ".iso8583studio", "card-profiles")
+        val dir = StudioPaths.home.toPath().resolve("card-profiles")
         Files.createDirectories(dir)
         ProfileStore(dir).also { s -> if (s.list().isEmpty()) SampleProfiles.all().forEach(s::save) }
     }

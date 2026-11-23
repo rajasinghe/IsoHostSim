@@ -15,7 +15,7 @@ import kotlin.test.assertIs
 //gimhan added
 /**
  * The update check and download against a real HTTP server laid out like the Azure VM:
- * `/iso8583studio/latest.json` next to the installers. Tests run outside an installed copy, so the
+ * `/pos-testing-platform/latest.json` next to the installers. Tests run outside an installed copy, so the
  * check reports [UpdateService.CheckResult.AvailableManualOnly] rather than offering to install.
  */
 class UpdateServiceHttpTest {
@@ -26,10 +26,10 @@ class UpdateServiceHttpTest {
 
     @BeforeTest fun start() {
         server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
-        server.createContext("/iso8583studio/") { ex ->
+        server.createContext("/pos-testing-platform/") { ex ->
             val body = when (ex.requestURI.path) {
-                "/iso8583studio/latest.json" -> manifest.toByteArray()
-                "/iso8583studio/ISO8583Studio-9.9.9.msi" -> installer
+                "/pos-testing-platform/latest.json" -> manifest.toByteArray()
+                "/pos-testing-platform/POS-Testing-Platform-9.9.9.msi" -> installer
                 else -> null
             }
             if (body == null) { ex.sendResponseHeaders(404, -1); ex.close(); return@createContext }
@@ -38,7 +38,7 @@ class UpdateServiceHttpTest {
             ex.close()
         }
         server.start()
-        AppSettings.updateUpdateSource("http://127.0.0.1:${server.address.port}/iso8583studio")
+        AppSettings.updateUpdateSource("http://127.0.0.1:${server.address.port}/pos-testing-platform")
     }
 
     @AfterTest fun stop() {
@@ -47,7 +47,7 @@ class UpdateServiceHttpTest {
     }
 
     private fun manifestWith(version: String, checksum: String) {
-        manifest = """{ "msi": { "version": "$version", "file": "ISO8583Studio-$version.msi", "sha256": "$checksum" } }"""
+        manifest = """{ "msi": { "version": "$version", "file": "POS-Testing-Platform-$version.msi", "sha256": "$checksum" } }"""
     }
 
     @Test fun `finds a newer version over http and downloads it intact`() {
@@ -56,7 +56,7 @@ class UpdateServiceHttpTest {
         assertEquals(UpdateService.CheckResult.AvailableManualOnly("9.9.9"), result)
 
         var lastProgress = 0L to 0L
-        val file = UpdateService.download(UpdatePackage("9.9.9", "ISO8583Studio-9.9.9.msi", sha)) { c, t -> lastProgress = c to t }
+        val file = UpdateService.download(UpdatePackage("9.9.9", "POS-Testing-Platform-9.9.9.msi", sha)) { c, t -> lastProgress = c to t }
         assertContentEquals(installer, file.readBytes())
         assertEquals(installer.size.toLong() to installer.size.toLong(), lastProgress)
         file.delete()
@@ -70,7 +70,7 @@ class UpdateServiceHttpTest {
     @Test fun `a corrupted download is rejected`() {
         manifestWith("9.9.9", "0".repeat(64))
         assertFailsWith<IllegalStateException> {
-            UpdateService.download(UpdatePackage("9.9.9", "ISO8583Studio-9.9.9.msi", "0".repeat(64)))
+            UpdateService.download(UpdatePackage("9.9.9", "POS-Testing-Platform-9.9.9.msi", "0".repeat(64)))
         }
     }
 

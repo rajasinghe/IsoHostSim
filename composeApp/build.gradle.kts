@@ -16,7 +16,7 @@ plugins {
 // Single source of truth for the app version (installers, About, saved configs).
 val studioVersion = "1.1.2"
 
-// Where installed copies look for updates: a folder (\\server\share\ISO8583Studio) or an http(s)
+// Where installed copies look for updates: a folder (\\server\share\PosTestingPlatform) or an http(s)
 // address holding latest.json. Set it in gradle.properties or with -PupdateSource=...; users can
 // override it in Settings. Blank turns the start-up check off. //gimhan added
 val updateSource: Provider<String> = providers.gradleProperty("updateSource").orElse("")
@@ -51,8 +51,8 @@ val generateBuildInfo by tasks.registering {
 // last, each under a temporary name then renamed, so clients never see a half-written release.
 //
 // publishTo is where the files go; it defaults to updateSource when that is a folder.
-//   publishTo=azureuser@20.1.2.3:/var/www/iso8583studio    upload over SSH (scp), e.g. an Azure VM
-//   publishTo=\\server\share\ISO8583Studio                copy to a folder
+//   publishTo=azureuser@20.1.2.3:/var/www/pos-testing-platform    upload over SSH (scp), e.g. an Azure VM
+//   publishTo=\\server\share\PosTestingPlatform                copy to a folder
 //
 //   gradlew :composeApp:publishUpdate -PreleaseNotes="Fixes ..."
 fun registerPublishUpdate(taskName: String, kind: String, packageTask: String) =
@@ -68,10 +68,13 @@ fun registerPublishUpdate(taskName: String, kind: String, packageTask: String) =
         doLast {
             val dest = destination.get().trim()
             require(dest.isNotEmpty() && !dest.startsWith("http", ignoreCase = true)) {
-                "Set publishTo (e.g. -PpublishTo=azureuser@<vm-ip>:/var/www/iso8583studio) in gradle.properties or on the command line."
+                "Set publishTo (e.g. -PpublishTo=azureuser@<vm-ip>:/var/www/pos-testing-platform) in gradle.properties or on the command line."
             }
             val installer = binDir.get().asFile.listFiles()?.firstOrNull { it.isFile && it.name.contains(version) }
                 ?: error("No $kind installer for version $version in ${binDir.get().asFile}")
+            // The name clients download. The updater resolves it as a URL, so it must not hold
+            // spaces ("POS Testing Platform-1.2.0.msi" is published as "POS-Testing-Platform-1.2.0.msi").
+            val publishedName = installer.name.replace(' ', '-')
 
             val digest = MessageDigest.getInstance("SHA-256")
             installer.inputStream().use { input ->
@@ -83,7 +86,7 @@ fun registerPublishUpdate(taskName: String, kind: String, packageTask: String) =
             @Suppress("UNCHECKED_CAST")
             fun merged(existing: File): String {
                 val old = if (existing.isFile && existing.length() > 0) JsonSlurper().parse(existing) as Map<String, Any?> else emptyMap()
-                val entry: Map<String, Any?> = mapOf("version" to version, "file" to installer.name, "sha256" to sha, "notes" to notes.get())
+                val entry: Map<String, Any?> = mapOf("version" to version, "file" to publishedName, "sha256" to sha, "notes" to notes.get())
                 val updated: Map<String, Any?> = old + mapOf<String, Any?>(kind to entry)
                 return JsonOutput.prettyPrint(JsonOutput.toJson(updated as Map<*, *>))
             }
@@ -108,23 +111,23 @@ fun registerPublishUpdate(taskName: String, kind: String, packageTask: String) =
                 run("ssh", host, "mkdir -p ${q(dir)}")
                 run("scp", "$host:$dir/latest.json", current.absolutePath, allowFail = true) // none on first publish
                 val manifest = File(stage, "latest.json").apply { writeText(merged(current)) }
-                println("Uploading ${installer.name} (${installer.length() / (1024 * 1024)} MB) to $host:$dir ...")
-                run("scp", installer.absolutePath, "$host:$dir/${installer.name}.part")
-                run("ssh", host, "mv -f ${q("$dir/${installer.name}.part")} ${q("$dir/${installer.name}")}")
+                println("Uploading $publishedName (${installer.length() / (1024 * 1024)} MB) to $host:$dir ...")
+                run("scp", installer.absolutePath, "$host:$dir/$publishedName.part")
+                run("ssh", host, "mv -f ${q("$dir/$publishedName.part")} ${q("$dir/$publishedName")}")
                 run("scp", manifest.absolutePath, "$host:$dir/latest.json.tmp")
-                run("ssh", host, "mv -f ${q("$dir/latest.json.tmp")} ${q("$dir/latest.json")} && chmod a+r ${q("$dir/latest.json")} ${q("$dir/${installer.name}")}")
-                println("Published ${installer.name} ($version) to $host:$dir")
+                run("ssh", host, "mv -f ${q("$dir/latest.json.tmp")} ${q("$dir/latest.json")} && chmod a+r ${q("$dir/latest.json")} ${q("$dir/$publishedName")}")
+                println("Published $publishedName ($version) to $host:$dir")
             } else {
                 val destDir = File(dest).apply { mkdirs() }
-                val target = File(destDir, installer.name)
-                val part = File(destDir, installer.name + ".part")
+                val target = File(destDir, publishedName)
+                val part = File(destDir, "$publishedName.part")
                 installer.copyTo(part, overwrite = true)
                 target.delete()
                 check(part.renameTo(target)) { "Could not rename $part to $target" }
                 val manifest = File(destDir, "latest.json")
                 val tmp = File(destDir, "latest.json.tmp").apply { writeText(merged(manifest)) }
                 Files.move(tmp.toPath(), manifest.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                println("Published ${installer.name} ($version) to $destDir")
+                println("Published $publishedName ($version) to $destDir")
             }
         }
     }
@@ -233,18 +236,24 @@ kotlin {
 
 
 
+// Fixed package for the generated resources class, so it does not follow the project name.
+compose.resources {
+    packageOfResClass = "lk.cba.isohostsim.resources"
+}
+
 compose.desktop {
     application {
-        mainClass = "lk.cba.isohostsim.ISO8583Studio"
+        mainClass = "lk.cba.isohostsim.PosTestingPlatform"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Exe, TargetFormat.Deb, TargetFormat.Rpm)
             includeAllModules = true
-            packageName = "ISO8583Studio"
+            // The name users see: installer, shortcuts, app menu and launcher.
+            packageName = "POS Testing Platform"
             packageVersion = studioVersion
-            description = "ISO8583 Message Processing Studio"
+            description = "Payment terminal testing: host simulator, ECR simulator, ISO 8583 parser and Logcat"
             copyright = "Internal QA build"
-            vendor = "ISO8583Studio"
+            vendor = "POS Testing Platform"
 
             // Windows specific configuration
             windows {
@@ -295,6 +304,8 @@ compose.desktop {
                 // Set the icon for Linux
                 iconFile.set(project.file("resources/linux/app.png"))
                 // Additional Linux settings
+                // Package names cannot hold spaces; this is the name dnf/apt and /opt use.
+                packageName = "pos-testing-platform"
                 shortcut = true
                 debMaintainer = "qa@localhost.localdomain"
                 menuGroup = "Development"
@@ -308,7 +319,7 @@ compose.desktop {
 // CI never depends on this machine's font rasterisation.
 tasks.withType<Test>().configureEach {
     // Tests get their own home folder: the app saves configs and settings under
-    // ~/.iso8583studio, and a test must never overwrite the developer's real ones.
+    // ~/.pos-testing-platform, and a test must never overwrite the developer's real ones.
     systemProperty("user.home", project.layout.buildDirectory.dir("test-home").get().asFile.absolutePath)
     systemProperty("golden.mode", (project.findProperty("golden") ?: "").toString())
     systemProperty("golden.dir", project.file("src/desktopTest/resources/golden").absolutePath)

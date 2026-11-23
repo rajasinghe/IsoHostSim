@@ -1,4 +1,4 @@
-rootProject.name = "ISO8583Studio"
+rootProject.name = "PosTestingPlatform"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {

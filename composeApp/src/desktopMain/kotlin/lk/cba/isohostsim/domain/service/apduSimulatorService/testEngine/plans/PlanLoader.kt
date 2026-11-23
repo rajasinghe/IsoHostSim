@@ -1,5 +1,7 @@
 package lk.cba.isohostsim.domain.service.apduSimulatorService.testEngine.plans
 
+import lk.cba.isohostsim.data.StudioPaths
+
 import lk.cba.isohostsim.domain.service.apduSimulatorService.testEngine.TestPlan
 import kotlinx.serialization.json.Json
 import java.nio.file.Files
@@ -24,11 +26,11 @@ object PlanLoader {
 
     /**
      * Resolve the directory where custom plans live. If [custom] is blank, falls back to
-     * `~/.iso8583studio/test-plans`. The directory is created if it does not yet exist.
+     * `~/.pos-testing-platform/test-plans`. The directory is created if it does not yet exist.
      */
     fun resolveDir(custom: String): Path {
         val path = if (custom.isBlank()) {
-            Paths.get(System.getProperty("user.home"), ".iso8583studio", "test-plans")
+            StudioPaths.home.toPath().resolve("test-plans")
         } else {
             Paths.get(custom)
         }

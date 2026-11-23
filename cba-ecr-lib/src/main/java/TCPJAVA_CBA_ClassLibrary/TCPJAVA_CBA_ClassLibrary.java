@@ -6,7 +6,7 @@
 package TCPJAVA_CBA_ClassLibrary;
 
 
-import TCPJAVA_CBA_ClassLibrary.Communication.PaxPort;   // ISO8583Studio patch
+import TCPJAVA_CBA_ClassLibrary.Communication.PaxPort;   // POS Testing Platform patch
 import TCPJAVA_CBA_ClassLibrary.Communication.USbConnector;
 import TCPJAVA_CBA_ClassLibrary.Requests.CheckStatus;
 import org.json.JSONObject;
@@ -69,7 +69,7 @@ public class TCPJAVA_CBA_ClassLibrary {
     //USB communication functions
     //usb serial communication check status
     public JSONObject CheckStatus() {
-        // ISO8583Studio patch: the original went through USbConnector, whose serialPort field is
+        // POS Testing Platform patch: the original went through USbConnector, whose serialPort field is
         // never assigned, so every USB Check Status failed with NAK 17 before anything was sent.
         // CheckStatusRequest.CheckStatus_USB() is the library's own working implementation on the
         // shared PaxPort, the same path every other USB command uses.
@@ -157,7 +157,7 @@ public class TCPJAVA_CBA_ClassLibrary {
         return TranCancelRequestResponse;
     }
 
-    // ISO8583Studio patch: close the shared PAX USB port (PaxPort keeps it open between commands).
+    // POS Testing Platform patch: close the shared PAX USB port (PaxPort keeps it open between commands).
     public static void closeUsb() {
         PaxPort.shutdown();
     }

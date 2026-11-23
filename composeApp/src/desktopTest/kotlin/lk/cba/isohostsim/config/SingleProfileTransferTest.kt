@@ -15,13 +15,13 @@ import kotlin.test.assertTrue
 /**
  * Covers single-profile export/import (as opposed to whole-workspace export/import).
  *
- * NOTE: [UnifiedSimulatorState.save] writes `Iso8583Studio_simulators.json` into the app home
+ * NOTE: [UnifiedSimulatorState.save] writes `PosTestingPlatform_simulators.json` into the app home
  * (`StudioPaths`), which Gradle points at `build/test-home` for tests. `importProfile` calls
  * `save()`, so each test still snapshots that file up front and restores it afterwards.
  */
 class SingleProfileTransferTest {
 
-    private val workspaceFile = lk.cba.isohostsim.data.StudioPaths.simulatorsFile("Iso8583Studio")
+    private val workspaceFile = lk.cba.isohostsim.data.StudioPaths.simulatorsFile("PosTestingPlatform")
     private var workspaceBackup: ByteArray? = null
 
     @BeforeTest

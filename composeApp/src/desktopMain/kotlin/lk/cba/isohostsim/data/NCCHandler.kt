@@ -71,7 +71,7 @@ class NCCHandler(private val m_NCCParameters: Array<NCCParameter>?) {
     }
 
     companion object {
-        val aboutUs: String = "ISO8583Studio"
+        val aboutUs: String = "POS Testing Platform"
     }
 }
 

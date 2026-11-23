@@ -279,7 +279,7 @@ fun GlobalSettingsScreen(onBack: () -> Unit) {
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text("Update location", fontWeight = FontWeight.Medium)
                         Text(
-                            "An address such as http://20.1.2.3/iso8583studio, or a folder. " +
+                            "An address such as http://20.1.2.3/pos-testing-platform, or a folder. " +
                                     "Leave blank to use the built-in location" +
                                     (BuildInfo.UPDATE_SOURCE.takeIf { it.isNotBlank() }?.let { " ($it)." } ?: "."),
                             style = MaterialTheme.typography.caption,

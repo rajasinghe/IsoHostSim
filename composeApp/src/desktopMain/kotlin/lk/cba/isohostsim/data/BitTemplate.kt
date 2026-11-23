@@ -13,7 +13,7 @@ import kotlin.math.absoluteValue
 class BitTemplate {
     companion object {
         @JvmStatic
-        val AboutUs: String get() = "ISO8583Studio"
+        val AboutUs: String get() = "POS Testing Platform"
 
         @JvmStatic
         fun getBINARYpecificArray(filename: String): Array<BitSpecific> {

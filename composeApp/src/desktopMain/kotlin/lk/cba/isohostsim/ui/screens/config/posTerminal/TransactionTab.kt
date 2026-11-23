@@ -73,7 +73,7 @@ fun TransactionTab(config: POSSimulatorConfig, onConfigUpdate: (POSSimulatorConf
             "LOOPBACK" -> ConfigSection("Software card profile", Icons.Default.Memory) {
                 if (profiles.isEmpty()) {
                     PosNoticeStrip(
-                        "No card profiles found in ~/.iso8583studio/card-profiles. Create one in the " +
+                        "No card profiles found in ~/.pos-testing-platform/card-profiles. Create one in the " +
                             "APDU Simulator, then pick it here.",
                         WarningYellow,
                     )

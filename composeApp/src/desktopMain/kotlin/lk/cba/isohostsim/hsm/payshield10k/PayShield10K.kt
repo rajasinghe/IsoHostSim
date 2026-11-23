@@ -32,7 +32,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Adapter that connects HsmServiceImpl to PayShield 10K Simulator
- * This is the BRIDGE between your ISO8583Studio and the PayShield simulator
+ * This is the BRIDGE between your POS Testing Platform and the PayShield simulator
  */
 class PayShield10K(val config: HsmConfig,val hsmLogsListener: HsmLogsListener) : HsmSimulator {
 

@@ -31,15 +31,15 @@ import androidx.compose.ui.window.rememberDialogState
 import lk.cba.isohostsim.StudioVersion
 import lk.cba.isohostsim.ui.AccentTeal
 import lk.cba.isohostsim.update.UpdateStatusRow //gimhan added
-import iso8583studio.composeapp.generated.resources.Res
-import iso8583studio.composeapp.generated.resources.app
-import iso8583studio.composeapp.generated.resources.compose_multiplatform
+import lk.cba.isohostsim.resources.Res
+import lk.cba.isohostsim.resources.app
+import lk.cba.isohostsim.resources.compose_multiplatform
 import java.awt.Desktop
 import java.net.URI
 import java.util.*
 
 /**
- * About dialog for ISO8583Studio application
+ * About dialog for POS Testing Platform application
  *
  * @param onCloseRequest Callback to invoke when the dialog should be closed
  * @param version Application version (defaults to BuildConfig.VERSION if available, or "1.0.14")

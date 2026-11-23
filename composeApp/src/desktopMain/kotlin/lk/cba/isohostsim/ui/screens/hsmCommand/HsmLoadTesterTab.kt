@@ -1832,7 +1832,7 @@ footer{border-top:1px solid #ddd;padding-top:16px;margin-top:40px;text-align:cen
 
         // Footer
         onProgress?.invoke("Finalising HTML (${allLogs.size} log entries, ${itemResults.size} items)…", 0.92f)
-        appendLine("<footer>ISO8583Studio &mdash; HSM Load Test Report &mdash; $now</footer>")
+        appendLine("<footer>POS Testing Platform &mdash; HSM Load Test Report &mdash; $now</footer>")
         appendLine("</div></body></html>")
     }
 }

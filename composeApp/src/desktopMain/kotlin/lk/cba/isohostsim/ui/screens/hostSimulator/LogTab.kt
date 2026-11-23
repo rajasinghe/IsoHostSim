@@ -610,7 +610,7 @@ fun createLogEntry(
  * Sample log entries for demonstration
  */
 fun getSampleLogEntries(): List<LogEntry> = listOf(
-    createLogEntry(LogType.INFO, "ISO8583Studio started successfully"),
+    createLogEntry(LogType.INFO, "POS Testing Platform started successfully"),
     createLogEntry(LogType.CONNECTION, "Server listening on port 8080", "Max connections: 100"),
     createLogEntry(LogType.CONNECTION, "Client connected", "IP: 192.168.1.45, Session: ABC123"),
     createLogEntry(
