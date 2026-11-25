@@ -127,6 +127,11 @@ data class Respond(
      * [SV] [TIME] [DATE] [RAND] [AUTO] [GUID] [SIMRC].
      */
     val set: Map<String, String> = emptyMap(),
+    /**
+     * A DCC quotation offer, sent in F63 for the request's F4 amount. When F4 is missing or the
+     * amount can't be offered, F39 is set to 99 ("DCC not available") instead. See [Dcc].
+     */
+    val dcc: DccQuote? = null,
 )
 
 @Serializable

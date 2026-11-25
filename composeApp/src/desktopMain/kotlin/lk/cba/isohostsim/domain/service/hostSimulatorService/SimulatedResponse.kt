@@ -6,6 +6,8 @@ import lk.cba.isohostsim.data.applyTemplate
 import lk.cba.isohostsim.data.updateBit
 import lk.cba.isohostsim.data.model.GatewayConfig
 import lk.cba.isohostsim.data.model.HttpMethod
+import lk.cba.isohostsim.domain.service.hostSimulatorService.profile.Dcc
+import lk.cba.isohostsim.domain.service.hostSimulatorService.profile.DccQuote
 import lk.cba.isohostsim.ui.screens.hostSimulator.MatchOperator
 import lk.cba.isohostsim.ui.screens.hostSimulator.Transaction
 
@@ -62,6 +64,7 @@ class SimulatedResponse(
             response.messageType = it.responseMti?.takeIf { mti -> mti.isNotBlank() }
                 ?: dataRequest?.messageType?.toIntOrNull()?.plus(10)?.toString() ?: ""
             isoData = response
+            it.dcc?.let { quote -> addDccOffer(response, quote) }
         }
 
         if (transaction == null) {
@@ -74,6 +77,25 @@ class SimulatedResponse(
             dataRequest?.tpduHeader?.rawTPDU?.takeIf { it.size == 5 }?.let { tpdu ->
                 isoData?.tpduHeader = TPDU(rawTPDU = swapTpdu(tpdu))
             }
+        }
+    }
+
+    /**
+     * Puts the DCC offer for the request's F4 amount in F63, or answers 99 ("DCC not available")
+     * when there is no amount to offer on.
+     */
+    private fun addDccOffer(response: Iso8583Data, quote: DccQuote) {
+        val amount = dataRequest?.takeIf { it.bitAttributes.getOrNull(3)?.isSet == true }?.getValue(3)
+        val block = Dcc.block(amount, quote)
+        if (block == null) {
+            setResponseCode(Dcc.NOT_AVAILABLE)
+            return
+        }
+        val template = config.getBitTemplate(isFirst) ?: emptyArray()
+        response.bitAttributes[Dcc.FIELD - 1].apply {
+            applyTemplate(template, Dcc.FIELD)
+            updateBit(block)
+            isSet = true
         }
     }
 

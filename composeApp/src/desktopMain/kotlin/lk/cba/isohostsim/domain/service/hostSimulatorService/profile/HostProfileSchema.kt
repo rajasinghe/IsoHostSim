@@ -105,6 +105,19 @@ object HostProfileSchema {
                 "type": "object",
                 "propertyNames": { "pattern": "$FIELD" },
                 "additionalProperties": { "type": "string", "description": "A literal (hex for BINARY) or one of [SV] [TIME] [DATE] [RAND] [AUTO] [GUID] [SIMRC]." }
+              },
+              "dcc": {
+                "type": "object", "additionalProperties": false, "required": ["currency", "currencyNumeric", "rate"],
+                "description": "DCC quotation offer, sent in F63 for the request's F4 amount. No F4: F39 99 (DCC not available).",
+                "properties": {
+                  "currency": { "type": "string", "pattern": "^[A-Z]{3}${'$'}", "description": "Cardholder currency, e.g. USD." },
+                  "currencyNumeric": { "type": "string", "pattern": "^[0-9]{3}${'$'}", "description": "ISO 4217 number, e.g. 840." },
+                  "exponent": { "type": "integer", "minimum": 0, "maximum": 3, "description": "Cardholder currency decimals; default 2." },
+                  "rate": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)?${'$'}", "description": "Cardholder currency per 1 merchant currency, e.g. 0.0033333. At most 7 significant digits." },
+                  "commission": { "type": "string", "pattern": "^[0-9]\\.[0-9]{3}${'$'}", "description": "Receipt only, e.g. 0.000." },
+                  "markup": { "type": "string", "pattern": "^[0-9]\\.[0-9]{3}${'$'}", "description": "Receipt only, e.g. 3.500." },
+                  "localExponent": { "type": "integer", "minimum": 0, "maximum": 3, "description": "Merchant currency decimals in F4; default 2." }
+                }
               }
             }
           }

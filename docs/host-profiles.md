@@ -72,6 +72,12 @@ host binds to the Wi-Fi hotspot's address.
 * LLVAR holds at most 99; use LLLVAR above that.
 * Fields you leave out use the ISO 8583 formats. Fields 57 to 63 default to text (`ANS`, `LLLVAR`, max 999),
   which is how terminals such as the IM30 send them (60 is the batch number, 63 the settlement totals).
+* `respond.dcc` answers a DCC rate inquiry with an offer in field 63, for the request's field 4 amount:
+  `"dcc": { "currency": "USD", "currencyNumeric": "840", "exponent": 2, "rate": "0.0033333", "commission": "0.000", "markup": "3.500" }`.
+  `rate` is cardholder currency per 1 merchant currency (LKR 1 = USD 0.0033333), at most 7 significant
+  digits. Field 63 must not be in `echo` or `set`. Without field 4 the reply gets 39 = 99 (DCC not
+  available). The built-in profile's `DCC QUOTATION` rule (0100 / 000000) answers HNB, SBC and CBC v2; a
+  tester can force "no DCC" with a response code 99 override. Format: `profile/Dcc.kt`.
 * Comments (`//`) and trailing commas are allowed. Unknown keys are reported, so typos do not pass silently.
 * Parsed logging is always on: request matching depends on it (the old Log Settings tab could turn it off,
   which made every request fail to match).

@@ -157,6 +157,7 @@ object HostProfileLoader {
                 if (problem != null) errors += problem
                 else checkValue(value, template.getValue(fieldNumber(key)!!))?.let { errors += "$where.respond.set.$key: $it" }
             }
+            t.respond.dcc?.let { q -> errors += checkDcc(q, t.respond, template, "$where.respond") }
         }
 
         p.unmatched.responseCode?.let {
@@ -172,6 +173,23 @@ object HostProfileLoader {
             return "$where: field $number has no format; add it under \"fields\" with its type, length and max"
         }
         return null
+    }
+
+    /** A DCC offer needs F4 to read the amount from and a text F63 long enough for the block. */
+    private fun checkDcc(q: DccQuote, r: Respond, template: Map<Int, BitSpecific>, where: String): List<String> {
+        val errors = Dcc.check(q).map { "$where.dcc.$it" }.toMutableList()
+        checkField("4", template, "$where.dcc")?.let { errors += "$it (the amount to convert)" }
+        val f63 = Dcc.FIELD.toString()
+        val problem = checkField(f63, template, "$where.dcc")
+        if (problem != null) errors += problem
+        else {
+            val spec = template.getValue(Dcc.FIELD)
+            if (spec.bitType != BitType.AN && spec.bitType != BitType.ANS || spec.bitLength == BitLength.FIXED || spec.maxLength < Dcc.MAX_BLOCK_LENGTH) {
+                errors += "$where.dcc: field 63 must be AN or ANS, LLVAR or LLLVAR, with max ${Dcc.MAX_BLOCK_LENGTH} or more, to carry the offer"
+            }
+        }
+        if (f63 in r.echo || f63 in r.set) errors += "$where: field 63 carries the DCC offer, so it can't also be in echo or set"
+        return errors
     }
 
     private fun checkValue(value: String, spec: BitSpecific): String? {
@@ -261,6 +279,7 @@ object HostProfileLoader {
             description = t.name,
             fields = fields,
             responseMti = t.respond.mti?.trimStart('0'),
+            dcc = t.respond.dcc,
         )
     }
 
@@ -347,7 +366,7 @@ object HostProfileLoader {
         return ProfileTransaction(
             name = t.description,
             match = Match(t.mti.padStart(4, '0'), t.proCode),
-            respond = Respond(mti = t.responseMti?.padStart(4, '0'), echo = echo, set = set),
+            respond = Respond(mti = t.responseMti?.padStart(4, '0'), echo = echo, set = set, dcc = t.dcc),
         )
     }
 

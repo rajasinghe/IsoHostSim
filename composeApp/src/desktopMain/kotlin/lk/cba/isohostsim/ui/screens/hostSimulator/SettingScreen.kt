@@ -1,5 +1,6 @@
 package lk.cba.isohostsim.ui.screens.hostSimulator
 
+import lk.cba.isohostsim.domain.service.hostSimulatorService.profile.DccQuote
 import androidx.compose.animation.*
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -80,6 +81,8 @@ data class Transaction(
     val responseMapping: ResponseMapping = ResponseMapping(),
     /** Response MTI to send; null means the request MTI + 10 (0200 → 0210). */
     val responseMti: String? = null,
+    /** A DCC quotation offer to put in F63; null for every other transaction. */
+    val dcc: DccQuote? = null,
 )
 
 @Serializable

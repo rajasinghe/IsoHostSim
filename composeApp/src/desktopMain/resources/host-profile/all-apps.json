@@ -40,7 +40,7 @@
 
   // Replies carry only fields that every app can parse. CBC v2 reads a reply with a fixed list of
   // fields per transaction and loses its place on any other bit, so F42, F55, F63 and F64 are never
-  // sent. F41 and F42 are left out on purpose: every app treats them as optional, and an app that
+  // sent (the DCC quotation's F63 is the exception: CBC v2 reads that reply as raw text). F41 and F42 are left out on purpose: every app treats them as optional, and an app that
   // compares them exactly fails the transaction when its terminal id or merchant id is padded.
   // F12 and F13 are always sent together or not at all, because F12 alone corrupts the stored date.
   // Replies are only ever F39=00; set it to 05 (decline) or use [SIMRC] to test declines.
@@ -84,6 +84,21 @@
       "respond": {
         "echo": ["3", "4", "11"],
         "set": { "12": "[TIME]", "13": "[DATE]", "37": "[RAND]", "38": "[RAND]", "39": "00" }
+      }
+    },
+    {
+      // DCC rate inquiry from HNB, SBC and CBC v2 (only sent when DCC is switched on in the app).
+      // The offer goes in F63; see profile/Dcc.kt for the format. The DCC sale that follows is a
+      // normal 0200 / 000000 with the cardholder amount in F4, answered by SALE above.
+      // To test "no DCC", set a terminal override with response code 99: the app sells in LKR.
+      // CBC new and CBC IM30 ask with 0200 / 890000 instead and are not answered with an offer.
+      "name": "DCC QUOTATION",
+      "match": { "mti": "0100", "processingCode": "000000" },
+      "respond": {
+        "echo": ["3", "4", "11"],
+        "set": { "12": "[TIME]", "13": "[DATE]", "39": "00" },
+        // LKR 1 = USD 0.0033333 (about LKR 300 per USD): LKR 1,000.00 is offered as USD 3.33.
+        "dcc": { "currency": "USD", "currencyNumeric": "840", "exponent": 2, "rate": "0.0033333", "commission": "0.000", "markup": "3.500" }
       }
     },
     {
@@ -133,6 +148,6 @@
     }
   ],
 
-  // Anything else (TLE key download 0800, DCC inquiry) gets a decline the terminal can show.
+  // Anything else (TLE key download 0800, CBC new / IM30 DCC inquiry) gets a decline the terminal can show.
   "unmatched": { "responseCode": "96" }
 }
